@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 
-import static no.ssb.lds.data.common.FormatConverter.Status;
+import static no.ssb.lds.data.common.converter.FormatConverter.Status;
 
 public class SeekableByteChannelCounter implements SeekableByteChannel {
 

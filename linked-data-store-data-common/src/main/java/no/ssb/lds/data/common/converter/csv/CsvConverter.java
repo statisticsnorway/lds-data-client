@@ -2,24 +2,28 @@ package no.ssb.lds.data.common.converter.csv;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
-import no.ssb.lds.data.common.ParquetProvider;
 import no.ssb.lds.data.common.converter.AbstractFormatConverter;
 import no.ssb.lds.data.common.model.GSIMComponent;
 import no.ssb.lds.data.common.model.GSIMDataset;
+import no.ssb.lds.data.common.parquet.ParquetProvider;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
-import org.apache.parquet.hadoop.ParquetReader;
-import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.MessageTypeParser;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.nio.channels.SeekableByteChannel;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.reactivex.Flowable.fromIterable;
 
@@ -38,30 +42,42 @@ public class CsvConverter extends AbstractFormatConverter {
                     "optional binary DATA_QUALITY (UTF8);" +
                     " }"
     );
-
     public static SimpleGroupFactory sfg = new SimpleGroupFactory(schema);
 
     public CsvConverter(GSIMDataset dataset, ParquetProvider provider) {
         super(dataset, provider);
     }
 
-    private Group encodeRecord(CSVRecord record) {
-        Group group = sfg.newGroup();
+    public static Schema createAvroSchema() {
+        return Schema.createRecord("name", "description", "no.ssb", false,
+                List.of(
+                        new Schema.Field("PERSON_ID", Schema.create(Schema.Type.STRING), "doc", (Object) null),
+                        new Schema.Field("INCOME", Schema.create(Schema.Type.LONG), "doc", (Object) null),
+                        new Schema.Field("GENDER", Schema.create(Schema.Type.STRING), "doc", (Object) null),
+                        new Schema.Field("MARITAL_STATUS", Schema.create(Schema.Type.STRING), "doc", (Object) null),
+                        new Schema.Field("MUNICIPALITY", Schema.create(Schema.Type.STRING), "doc", (Object) null),
+                        new Schema.Field("DATA_QUALITY", Schema.create(Schema.Type.STRING), "doc", (Object) null)
+                )
+        );
+    }
+
+    private GenericRecord encodeRecord(CSVRecord record) {
+        GenericRecordBuilder recordBuilder = new GenericRecordBuilder(createAvroSchema());
         for (GSIMComponent component : getDataset().getComponents()) {
             String name = component.getName();
             String value = record.get(name);
             switch (component.getType()) {
                 case STRING:
-                    group.add(name, value);
+                    recordBuilder.set(name, value);
                     break;
                 case INTEGER:
-                    group.add(name, Long.parseLong(value));
+                    recordBuilder.set(name, Long.parseLong(value));
                     break;
                 case BOOLEAN:
-                    group.add(name, Boolean.parseBoolean(value));
+                    recordBuilder.set(name, Boolean.parseBoolean(value));
                     break;
                 case FLOAT:
-                    group.add(name, Double.parseDouble(value));
+                    recordBuilder.set(name, Double.parseDouble(value));
                     break;
                 case DATETIME:
                     // TODO: Handle date time.
@@ -69,11 +85,11 @@ public class CsvConverter extends AbstractFormatConverter {
                     throw new IllegalArgumentException("Unsupported type");
             }
         }
-        return group;
+        return recordBuilder.build();
     }
 
     @Override
-    public Flowable<Group> encode(InputStream input) {
+    public Flowable<GenericRecord> encode(InputStream input) {
         // TODO: Detect charset
         // TODO: Support Hierarchical dataset.
         // TODO: Fail if no headers.
@@ -84,11 +100,35 @@ public class CsvConverter extends AbstractFormatConverter {
     }
 
     @Override
-    public Completable decode(Flowable<Group> records, OutputStream output) {
+    public Completable decode(Flowable<GenericRecord> records, OutputStream output) {
         // TODO: Detect charset
         // TODO: Support Hierarchical dataset.
         // TODO: Fail if no headers.
-        return Completable.error(new IllegalArgumentException("not implemented"));
+        List<String> names = new ArrayList<>();
+        for (Schema.Field field : getSchema().getFields()) {
+            names.add(field.name());
+        }
+        OutputStreamWriter out = new OutputStreamWriter(output);
+        return Completable.defer(() -> {
+            try {
+                CSVPrinter csvPrinter = CSVFormat.RFC4180.withHeader(names.toArray(new String[]{}))
+                        .print(out);
+                return records.doOnNext(genericRecord -> {
+                    List<Object> values = new ArrayList<>();
+                    for (String name : names) {
+                        values.add(genericRecord.get(name));
+                    }
+                    csvPrinter.printRecord(values);
+                }).doFinally(() -> out.flush()).ignoreElements();
+            } catch (IOException e) {
+                return Completable.error(e);
+            }
+        });
+    }
+
+    @Override
+    protected Schema getSchema() {
+        return createAvroSchema();
     }
 
     public boolean doesSupport(String mediaType) {

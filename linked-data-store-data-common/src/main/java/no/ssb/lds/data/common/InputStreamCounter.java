@@ -1,6 +1,6 @@
 package no.ssb.lds.data.common;
 
-import no.ssb.lds.data.common.FormatConverter;
+import no.ssb.lds.data.common.converter.FormatConverter;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -3,12 +3,13 @@ package no.ssb.lds.data.common.converter;
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import io.reactivex.Observable;
-import no.ssb.lds.data.common.FormatConverter;
 import no.ssb.lds.data.common.InputStreamCounter;
 import no.ssb.lds.data.common.OutputStreamCounter;
-import no.ssb.lds.data.common.ParquetProvider;
 import no.ssb.lds.data.common.SeekableByteChannelCounter;
 import no.ssb.lds.data.common.model.GSIMDataset;
+import no.ssb.lds.data.common.parquet.ParquetProvider;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -40,39 +41,44 @@ public abstract class AbstractFormatConverter implements FormatConverter {
     /**
      * Convert an input stream to a flowable of {@link Group}
      */
-    protected abstract Flowable<Group> encode(InputStream input) throws IOException;
+    protected abstract Flowable<GenericRecord> encode(InputStream input) throws IOException;
 
-    protected abstract Completable decode(Flowable<Group> records, OutputStream output);
+    protected abstract Completable decode(Flowable<GenericRecord> records, OutputStream output);
+
+    protected abstract Schema getSchema();
 
     @Override
     public final Observable<Status> write(InputStream input, SeekableByteChannel output) throws IOException {
+
+        // Wrap input and output to count bytes.
         Status status = new Status();
         InputStreamCounter countedInput = new InputStreamCounter(input, status);
         SeekableByteChannelCounter countedOutput = new SeekableByteChannelCounter(output, status);
+
         return Observable.defer(() -> {
-            ParquetWriter<Group> writer = provider.getWriter(countedOutput);
-            Flowable<Group> groups = encode(countedInput);
+            ParquetWriter<GenericRecord> writer = provider.getWriter(countedOutput, getSchema());
+            Flowable<GenericRecord> groups = encode(countedInput);
             return groups.map(group -> {
                 writer.write(group);
                 return status;
-            }).toObservable();
+            }).doFinally(writer::close).toObservable();
         });
     }
 
     @Override
     public final Observable<Status> read(SeekableByteChannel input, OutputStream output) {
 
-        // Used to count the byte in and out.
+        // Wrap input and output to count bytes.
         Status status = new Status();
         SeekableByteChannelCounter countedInput = new SeekableByteChannelCounter(input, status);
         OutputStreamCounter countedOutput = new OutputStreamCounter(output, status);
 
         return Observable.defer(() -> {
-            Flowable<Group> groups = Flowable.generate(() -> {
-                return provider.getReader(countedInput);
+            Flowable<GenericRecord> groups = Flowable.generate(() -> {
+                return provider.getReader(countedInput, getSchema());
             }, (reader, emitter) -> {
                 try {
-                    Group nextGroup = reader.read();
+                    GenericRecord nextGroup = reader.read();
                     if (nextGroup == null) {
                         emitter.onComplete();
                     } else {

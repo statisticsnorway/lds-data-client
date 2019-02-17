@@ -14,7 +14,7 @@ public class SeekableInputStreamWrapper extends SeekableInputStream {
 
     private final SeekableByteChannel delegate;
 
-    private SeekableInputStreamWrapper(SeekableByteChannel delegate) {
+    public SeekableInputStreamWrapper(SeekableByteChannel delegate) {
         this.delegate = delegate;
     }
 
