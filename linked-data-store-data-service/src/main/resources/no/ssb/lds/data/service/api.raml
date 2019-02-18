@@ -2,6 +2,7 @@
 title: LDS data API
 version: v1
 mediaType: application/json
+baseUri: http://localhost:8080
 protocols: [ HTTPS ]
 /upload/{uploadId}:
   uriParameters:
@@ -23,10 +24,14 @@ protocols: [ HTTPS ]
   uriParameters:
       datasetId:
         type: string
+
   post:
   /{versionId}:
     description: The data for this dataset and data version.
     get:
+      headers:
+        Accept:
+          default: text/csv
       responses:
         200:
           body:

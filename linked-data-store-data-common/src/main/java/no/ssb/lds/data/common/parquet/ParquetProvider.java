@@ -41,7 +41,6 @@ public class ParquetProvider {
                         input.position(newPos);
                     }
                 };
-                //return new SeekableInputStreamWrapper(input);
             }
         }).build();
         return reader;

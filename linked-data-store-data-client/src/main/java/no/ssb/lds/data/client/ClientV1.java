@@ -1,13 +1,19 @@
 package no.ssb.lds.data.client;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.aexp.nodes.graphql.GraphQLRequestEntity;
 import io.aexp.nodes.graphql.GraphQLResponseEntity;
 import io.aexp.nodes.graphql.GraphQLTemplate;
+import no.ssb.lds.data.common.model.GSIMComponent;
 import no.ssb.lds.data.common.model.GSIMDataset;
+import no.ssb.lds.data.common.model.GSIMRole;
+import no.ssb.lds.data.common.model.GSIMType;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class ClientV1 implements Client {
@@ -104,11 +110,39 @@ public class ClientV1 implements Client {
     }
 
     public GSIMDataset getDataset(String id) {
-        GraphQLResponseEntity<Map> responseEntity = TEMPLATE.query(datasetRequest, Map.class);
+        GraphQLResponseEntity<JsonNode> responseEntity = TEMPLATE.query(datasetRequest, JsonNode.class);
+
         // Normalize result.
-        // TODO: Handle errors.
-        Map<String, Object> response = responseEntity.getResponse();
-        return null;
+        JsonNode response = responseEntity.getResponse();
+        JsonNode cursor = response.get("UnitDataSet").get("edges").get(0);
+
+        List<GSIMComponent> components = new ArrayList<>();
+        GSIMDataset dataset = new GSIMDataset(cursor.get("cursor").asText(), components);
+
+        JsonNode records = cursor.get("node").get("unitDataStructure").get("logicalRecords").get("edges").get(0).get("node");
+        JsonNode identifierComponents = records.get("identifierComponents").get("edges");
+        for (JsonNode component : identifierComponents) {
+            JsonNode node = component.get("node");
+            String name = node.get("shortName").asText();
+            String typeName = node.get("representedVariable").get("substantiveValueDomain").get("dataType").asText();
+            components.add(new GSIMComponent(name, GSIMRole.IDENTIFIER, GSIMType.valueOf(typeName)));
+        }
+        JsonNode measureComponents = records.get("measureComponents").get("edges");
+        for (JsonNode component : measureComponents) {
+            JsonNode node = component.get("node");
+            String name = node.get("shortName").asText();
+            String typeName = node.get("representedVariable").get("substantiveValueDomain").get("dataType").asText();
+            components.add(new GSIMComponent(name, GSIMRole.MEASURE, GSIMType.valueOf(typeName)));
+        }
+        JsonNode attributeComponents = records.get("attributeComponents").get("edges");
+        for (JsonNode component : attributeComponents) {
+            JsonNode node = component.get("node");
+            String name = node.get("shortName").asText();
+            String typeName = node.get("representedVariable").get("substantiveValueDomain").get("dataType").asText();
+            components.add(new GSIMComponent(name, GSIMRole.ATTRIBUTE, GSIMType.valueOf(typeName)));
+        }
+
+        return dataset;
     }
 
     public void putData(GSIMDataset dataset, ReadableByteChannel data, String mimeType) {
