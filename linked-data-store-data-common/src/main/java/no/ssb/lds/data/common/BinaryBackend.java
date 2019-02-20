@@ -11,7 +11,7 @@ import java.nio.channels.WritableByteChannel;
  */
 public interface BinaryBackend {
 
-    SeekableByteChannel read(String path) throws FileNotFoundException;
+    SeekableByteChannel read(String path) throws IOException;
 
     SeekableByteChannel write(String path) throws IOException;
 }

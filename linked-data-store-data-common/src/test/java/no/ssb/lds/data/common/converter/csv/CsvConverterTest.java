@@ -1,6 +1,7 @@
 package no.ssb.lds.data.common.converter.csv;
 
-import no.ssb.lds.data.common.SeekableInMemoryByteChannel;
+import io.reactivex.Completable;
+import no.ssb.lds.data.common.utils.SeekableInMemoryByteChannel;
 import no.ssb.lds.data.common.model.GSIMDataset;
 import no.ssb.lds.data.common.model.GSIMDatasetTest;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
@@ -34,9 +35,7 @@ class CsvConverterTest {
         ).getBytes());
         SeekableInMemoryByteChannel parquetOutput = new SeekableInMemoryByteChannel();
 
-        converter.write(csvInput, parquetOutput, "", dataset)
-                .doOnNext(status -> System.out.println(status))
-                .ignoreElements()
+        Completable.wrap(converter.write(csvInput, parquetOutput, "", dataset))
                 .blockingAwait();
 
         SeekableInMemoryByteChannel parquetInput = new SeekableInMemoryByteChannel(parquetOutput.array());
@@ -52,9 +51,7 @@ class CsvConverterTest {
         ByteArrayOutputStream csvOutput = new ByteArrayOutputStream();
 
 
-        converter.read(parquetInput, csvOutput, "", dataset)
-                .doOnNext(status -> System.out.println(status))
-                .ignoreElements()
+        Completable.wrap(converter.read(parquetInput, csvOutput, "", dataset))
                 .blockingAwait();
 
         System.out.println(csvOutput);

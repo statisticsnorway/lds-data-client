@@ -1,6 +1,8 @@
 package no.ssb.lds.data.common.converter;
 
-import io.reactivex.Observable;
+import io.reactivex.Completable;
+import io.reactivex.CompletableObserver;
+import io.reactivex.CompletableSource;
 import no.ssb.lds.data.common.model.GSIMDataset;
 
 import java.io.IOException;
@@ -25,21 +27,22 @@ public interface FormatConverter {
     /**
      * Convert the input to the output.
      *
-     * @return an observable with read/write status.
+     * @return a {@link CompletableSource} with read/write status.
      */
-    Observable<Status> write(InputStream input, SeekableByteChannel output, String mimeType, GSIMDataset dataset) throws IOException;
+    Status write(InputStream input, SeekableByteChannel output, String mimeType, GSIMDataset dataset) throws IOException;
 
     /**
      * Convert back the input to the output.
      *
-     * @return an observable with read/write status.
+     * @return a {@link CompletableSource} with read/write status.
      */
-    Observable<Status> read(SeekableByteChannel input, OutputStream output, String mimeType, GSIMDataset dataset);
+    Status read(SeekableByteChannel input, OutputStream output, String mimeType, GSIMDataset dataset);
 
-    class Status {
+    class Status implements CompletableSource {
 
         private AtomicLong read = new AtomicLong(0);
         private AtomicLong write = new AtomicLong(0);
+        private Completable completable;
 
         public void addRead(long bytes) {
             read.addAndGet(bytes);
@@ -64,5 +67,15 @@ public interface FormatConverter {
                     .add("write=" + write)
                     .toString();
         }
+
+        void setCompletable(Completable completable) {
+            this.completable = completable;
+        }
+
+        @Override
+        public void subscribe(CompletableObserver completableObserver) {
+            completable.subscribe(completableObserver);
+        }
+
     }
 }

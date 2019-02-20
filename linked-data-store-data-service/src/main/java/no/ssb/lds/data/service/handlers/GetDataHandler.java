@@ -1,5 +1,6 @@
 package no.ssb.lds.data.service.handlers;
 
+import io.reactivex.Completable;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.Headers;
@@ -55,9 +56,8 @@ public class GetDataHandler implements HttpHandler {
             exchange.getResponseHeaders().add(Headers.CONTENT_TYPE, mediaType);
             exchange.startBlocking();
             // TODO: Should use the requested header?
-            // TODO: Do something with status.
-            formatConverter.read(channel, exchange.getOutputStream(), mediaType, dataset).ignoreElements()
-                    .blockingAwait();
+            FormatConverter.Status status = formatConverter.read(channel, exchange.getOutputStream(), mediaType, dataset);
+            Completable.wrap(status).blockingAwait();
             exchange.getOutputStream().flush();
             exchange.endExchange();
         } else {

@@ -1,4 +1,4 @@
-package no.ssb.lds.data.common;
+package no.ssb.lds.data.common.utils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
