@@ -9,10 +9,6 @@ import java.nio.channels.ReadableByteChannel;
  */
 public interface Client {
 
-    interface Config {
-
-    }
-
     GSIMDataset getDataset(String id);
 
     void putData(GSIMDataset dataset, ReadableByteChannel data, String mimeType);

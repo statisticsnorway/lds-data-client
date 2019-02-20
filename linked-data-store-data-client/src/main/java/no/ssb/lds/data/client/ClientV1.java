@@ -14,7 +14,7 @@ import java.net.URL;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+
 
 public class ClientV1 implements Client {
 
@@ -109,6 +109,46 @@ public class ClientV1 implements Client {
                 .build();
     }
 
+    /**
+     * Returns all the node values in the given connections.
+     */
+    public static List<JsonNode> getNodes(JsonNode connection) {
+        JsonNode edges = connection.get("edges");
+        if (edges == null) {
+            throw new IllegalArgumentException("the connection " + connection + " did not contain edges");
+        }
+        if (!edges.isArray()) {
+            throw new IllegalArgumentException("the edges in " + connection + " was not an array");
+        }
+        List<JsonNode> jsonNodes = new ArrayList<>(edges.size());
+        for (JsonNode edge : edges) {
+            jsonNodes.add(getNode(edge));
+        }
+        return jsonNodes;
+    }
+
+    private static String getCursor(JsonNode edge) {
+        JsonNode cursor = edge.get("cursor");
+        if (cursor == null) {
+            throw new IllegalArgumentException("the edge " + edge + " did not contain cursor");
+        }
+        return cursor.asText();
+    }
+
+    private static JsonNode getNode(JsonNode edge) {
+        JsonNode node = edge.get("node");
+        if (node == null) {
+            throw new IllegalArgumentException("the edge " + edge + " did not contain node");
+        }
+        return node;
+    }
+
+    private static GSIMComponent convertRepresentedVariable(JsonNode node, GSIMRole role) {
+        String name = node.get("shortName").asText();
+        String typeName = node.get("representedVariable").get("substantiveValueDomain").get("dataType").asText();
+        return new GSIMComponent(name, role, GSIMType.valueOf(typeName));
+    }
+
     public GSIMDataset getDataset(String id) {
         GraphQLResponseEntity<JsonNode> responseEntity = TEMPLATE.query(datasetRequest, JsonNode.class);
 
@@ -120,26 +160,18 @@ public class ClientV1 implements Client {
         GSIMDataset dataset = new GSIMDataset(cursor.get("cursor").asText(), components);
 
         JsonNode records = cursor.get("node").get("unitDataStructure").get("logicalRecords").get("edges").get(0).get("node");
-        JsonNode identifierComponents = records.get("identifierComponents").get("edges");
+
+        List<JsonNode> identifierComponents = getNodes(records.get("identifierComponents"));
         for (JsonNode component : identifierComponents) {
-            JsonNode node = component.get("node");
-            String name = node.get("shortName").asText();
-            String typeName = node.get("representedVariable").get("substantiveValueDomain").get("dataType").asText();
-            components.add(new GSIMComponent(name, GSIMRole.IDENTIFIER, GSIMType.valueOf(typeName)));
+            components.add(convertRepresentedVariable(component, GSIMRole.IDENTIFIER));
         }
-        JsonNode measureComponents = records.get("measureComponents").get("edges");
+        List<JsonNode> measureComponents = getNodes(records.get("measureComponents"));
         for (JsonNode component : measureComponents) {
-            JsonNode node = component.get("node");
-            String name = node.get("shortName").asText();
-            String typeName = node.get("representedVariable").get("substantiveValueDomain").get("dataType").asText();
-            components.add(new GSIMComponent(name, GSIMRole.MEASURE, GSIMType.valueOf(typeName)));
+            components.add(convertRepresentedVariable(component, GSIMRole.MEASURE));
         }
-        JsonNode attributeComponents = records.get("attributeComponents").get("edges");
+        List<JsonNode> attributeComponents = getNodes(records.get("attributeComponents"));
         for (JsonNode component : attributeComponents) {
-            JsonNode node = component.get("node");
-            String name = node.get("shortName").asText();
-            String typeName = node.get("representedVariable").get("substantiveValueDomain").get("dataType").asText();
-            components.add(new GSIMComponent(name, GSIMRole.ATTRIBUTE, GSIMType.valueOf(typeName)));
+            components.add(convertRepresentedVariable(component, GSIMRole.ATTRIBUTE));
         }
 
         return dataset;
