@@ -12,4 +12,11 @@ class ClientV1Test {
         ClientV1 clientV1 = new ClientV1("http://localhost:9090/graphql");
         GSIMDataset dataset = clientV1.getDataset("todo");
     }
+
+
+    @Test
+    void testUsage() throws MalformedURLException {
+
+
+    }
 }

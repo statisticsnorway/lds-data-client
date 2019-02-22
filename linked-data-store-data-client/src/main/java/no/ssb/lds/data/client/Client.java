@@ -17,6 +17,4 @@ public interface Client {
 
     Object getData(GSIMDataset dataset, String filter, String order);
 
-
-
 }

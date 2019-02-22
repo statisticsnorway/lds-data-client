@@ -49,9 +49,6 @@ public abstract class AbstractFormatConverter implements FormatConverter {
         }
     }
 
-    /**
-     * Convert an input stream to a flowable of {@link Group}
-     */
     protected abstract Flowable<GenericRecord> encode(InputStream input, Schema schema) throws IOException;
 
     protected abstract Completable decode(Flowable<GenericRecord> records, OutputStream output, Schema schema);
@@ -104,7 +101,6 @@ public abstract class AbstractFormatConverter implements FormatConverter {
 
         // Back pressured.
         Flowable<GenericRecord> groups = Flowable.generate(() -> {
-
             return provider.getReader(countedInput, schema);
         }, (reader, emitter) -> {
             try {

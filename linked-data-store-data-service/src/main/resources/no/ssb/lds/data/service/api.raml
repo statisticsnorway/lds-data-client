@@ -4,27 +4,41 @@ version: v1
 mediaType: application/json
 baseUri: http://localhost:8080
 protocols: [ HTTPS ]
-/upload/{uploadId}:
-  uriParameters:
-      uploadId:
-        type: string
-  post:
-    body:
-      application/avro+binary:
-      application/parquet+binary:
-      application/vnd.ms-excel:
-      text/csv:
-    responses:
-      200:
+/upload:
   get:
+    description: Returns a list of uploads.
     responses:
       200:
+        body:
+          application/no.ssb.lds.data.uploads+json:
+          application/json:
+  /{uploadId}:
+    uriParameters:
+        uploadId:
+          type: string
+    post:
+      body:
+        application/avro+binary:
+        application/parquet+binary:
+        application/vnd.ms-excel:
+        text/csv:
+      responses:
+        200:
+    get:
+      responses:
+        200:
+          body:
+            application/no.ssb.lds.data.upload+json:
+            application/json:
+    delete:
+      description: Cancel an upload.
+      responses:
+        200:
 
 /data/{datasetId}:
   uriParameters:
       datasetId:
         type: string
-
   post:
   /{versionId}:
     description: The data for this dataset and data version.
