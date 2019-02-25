@@ -5,10 +5,9 @@ import io.undertow.Undertow;
 import io.undertow.server.handlers.AllowedMethodsHandler;
 import io.undertow.server.handlers.PathTemplateHandler;
 import io.undertow.util.Methods;
+import no.ssb.lds.data.GoogleCloudStorageBackend;
 import no.ssb.lds.data.client.ClientV1;
 import no.ssb.lds.data.common.BinaryBackend;
-import no.ssb.lds.data.common.HadoopBackend;
-import no.ssb.lds.data.common.LocalBackend;
 import no.ssb.lds.data.common.converter.FormatConverter;
 import no.ssb.lds.data.common.converter.csv.CsvConverter;
 import no.ssb.lds.data.common.model.GSIMDataset;
@@ -16,23 +15,8 @@ import no.ssb.lds.data.common.parquet.ParquetProvider;
 import no.ssb.lds.data.service.handlers.GetDataHandler;
 import no.ssb.lds.data.service.handlers.PostDataHandler;
 import no.ssb.lds.data.service.handlers.UploadHandler;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.parquet.io.InputFile;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.nio.channels.SeekableByteChannel;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,21 +30,22 @@ public class Server {
 
         Map<String, String> config = new HashMap<>();
         config.put("lds.url", "http://localhost:9090/");
-        config.put("data", "./data/");
+        config.put("data", "gs://ssb-data-a/data/");
         config.put("backend", "HADOOP");
 
         String backendType = config.get("backend");
         String prefix = config.get("data");
-        BinaryBackend backend;
-        if (backendType.equals("LOCAL")) {
-            backend = new LocalBackend(prefix);
-        } else if (backendType.equals("HADOOP")) {
-            Configuration configuration = new Configuration();
-            FileSystem fileSystem = FileSystem.newInstance(URI.create("file://home/hadrien/Projects/SSB/linked-data-store-data/data/hadoop/"), configuration);
-            backend = new HadoopBackend(fileSystem);
-        } else {
-            throw new IllegalArgumentException("unkown backend " + backendType);
-        }
+        BinaryBackend backend = new GoogleCloudStorageBackend(prefix);
+
+//        if (backendType.equals("LOCAL")) {
+//            backend = new LocalBackend(prefix);
+//        } else if (backendType.equals("HADOOP")) {
+//            Configuration configuration = new Configuration();
+//            FileSystem fileSystem = FileSystem.newInstance(URI.create("file://home/hadrien/Projects/SSB/linked-data-store-data/data/hadoop/"), configuration);
+//            backend = new HadoopBackend(fileSystem);
+//        } else {
+//            throw new IllegalArgumentException("unkown backend " + backendType);
+//        }
 
         // Fetch the datasets from LDS.
         ClientV1 clientV1 = new ClientV1(config.get("lds.url") + "graphql");

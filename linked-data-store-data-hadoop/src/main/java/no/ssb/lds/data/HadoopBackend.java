@@ -1,5 +1,6 @@
-package no.ssb.lds.data.common;
+package no.ssb.lds.data;
 
+import no.ssb.lds.data.common.BinaryBackend;
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -23,8 +24,6 @@ public class HadoopBackend implements BinaryBackend {
     public SeekableByteChannel read(String path) throws IOException {
         Path fsPath = new Path(path);
         FSDataInputStream dataInputStream = fileSystem.open(fsPath);
-        FileStatus status = fileSystem.getFileStatus(fsPath);
-        long size = status.getLen();
         return new SeekableByteChannel() {
             @Override
             public int read(ByteBuffer dst) throws IOException {
@@ -53,7 +52,7 @@ public class HadoopBackend implements BinaryBackend {
 
             @Override
             public long size() throws IOException {
-                return size;
+                return fileSystem.getFileStatus(fsPath).getLen();
             }
 
             @Override
@@ -77,8 +76,6 @@ public class HadoopBackend implements BinaryBackend {
     public SeekableByteChannel write(String path) throws IOException {
         Path fsPath = new Path(path);
         FSDataOutputStream dataOutputStream = fileSystem.create(fsPath);
-        FileStatus status = fileSystem.getFileStatus(fsPath);
-        long size = status.getLen();
         return new SeekableByteChannel() {
             @Override
             public int read(ByteBuffer dst) throws IOException {
@@ -105,7 +102,7 @@ public class HadoopBackend implements BinaryBackend {
 
             @Override
             public long size() throws IOException {
-                return size;
+                return fileSystem.getFileStatus(fsPath).getLen();
             }
 
             @Override

@@ -1,4 +1,6 @@
-package no.ssb.lds.data.common;
+package no.ssb.lds.data;
+
+import no.ssb.lds.data.common.BinaryBackend;
 
 import java.io.File;
 import java.io.FileInputStream;

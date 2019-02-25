@@ -11,23 +11,26 @@
     </parent>
 
     <groupId>no.ssb.lds.data</groupId>
-    <artifactId>linked-data-store-data-client</artifactId>
+    <artifactId>linked-data-store-data-gcs</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-
-    <repositories>
-        <repository>
-            <id>bintray-americanexpress-maven</id>
-            <url>https://dl.bintray.com/americanexpress/maven</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
-            <groupId>io.aexp.nodes.graphql</groupId>
-            <artifactId>nodes</artifactId>
-            <version>0.4.0</version>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>27.0.1-jre</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+            <version>1.59.0</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>guava</artifactId>
+                    <groupId>com.google.guava</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
             <artifactId>linked-data-store-data-common</artifactId>
