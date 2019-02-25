@@ -8,6 +8,7 @@ import java.nio.channels.SeekableByteChannel;
  */
 public interface BinaryBackend {
 
+
     SeekableByteChannel read(String path) throws IOException;
 
     SeekableByteChannel write(String path) throws IOException;

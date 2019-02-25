@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.channels.WritableByteChannel;
 
 /**
  * A simple BinaryBackend for Google Cloud Storage.

@@ -1,7 +1,9 @@
 package no.ssb.lds.data.service.handlers;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.huxhorn.sulky.ulid.ULID;
 import io.reactivex.Completable;
 import io.reactivex.Scheduler;
 import io.reactivex.disposables.Disposable;
@@ -32,48 +34,44 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 
+/**
+ * Handle uploads.
+ * <p>
+ * A concurrent map of UUID / UploadHandle is used to save the current handles.
+ */
 public class UploadHandler implements HttpHandler {
 
     public static final String UPLOAD_ID = "uploadId";
     public static final String PATH = "/upload/{" + UPLOAD_ID + "}";
-    private final Logger LOG = LoggerFactory.getLogger(UploadHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(UploadHandler.class);
+    private static final ObjectMapper mapper = new ObjectMapper();
 
-    // The datasets we are uploading to.
-    private final ConcurrentMap<String, GSIMDataset> uploads;
-
-    // Maps the upload handles to status.
-    private final ConcurrentMap<String, UUID> uploadsToVersion;
-
-    // The statuses.
-    private final ConcurrentMap<UUID, FormatConverter.Status> statuses;
-
-    // The disposable.
-    private final ConcurrentMap<UUID, Disposable> disposable;
-
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ULID ulid = new ULID();
+    private final ConcurrentMap<UUID, Handle> uploads;
 
     private final List<FormatConverter> converters;
     private final BinaryBackend backend;
-    private final Scheduler conversionScheduler = Schedulers.from(Executors.newCachedThreadPool(), true);
+
+    private final Scheduler conversionScheduler = Schedulers.from(
+            Executors.newCachedThreadPool(),
+            true
+    );
 
     public UploadHandler(
-            ConcurrentMap<String, GSIMDataset> uploads,
             List<FormatConverter> converters,
             BinaryBackend backend
     ) {
-        this.uploads = uploads;
+        this.uploads = new ConcurrentHashMap<>();
         this.converters = converters;
         this.backend = backend;
-        this.statuses = new ConcurrentHashMap<>();
-        this.uploadsToVersion = new ConcurrentHashMap<>();
-        this.disposable = new ConcurrentHashMap<>();
     }
 
     @Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
         // Extract path variables.
         Map<String, String> parameters = exchange.getAttachment(PathTemplateMatch.ATTACHMENT_KEY).getParameters();
-        String uploadId = parameters.get(UPLOAD_ID);
+        String uploadIdString = parameters.get(UPLOAD_ID);
+        UUID uploadId = UUID.fromString(uploadIdString);
         if (!uploads.containsKey(uploadId)) {
             ResponseCodeHandler.HANDLE_404.handleRequest(exchange);
         } else {
@@ -89,44 +87,55 @@ public class UploadHandler implements HttpHandler {
     }
 
     /**
-     * Must return a UUID that is <strong>lexicographically</strong> sortable
-     * by time of creation.
+     * Returns a UUID equal to the original dataset id if it was a UUID.
+     * <p>
+     * This is to avoid upload contention. The original ID is saved in the
+     * parquet file and upload status.
+     */
+    private UUID getDataUUID(GSIMDataset dataset) {
+        String originalId = dataset.getId();
+        try {
+            return UUID.fromString(originalId);
+        } catch (IllegalArgumentException iae) {
+            // Generate a UUID to avoid upload performances issues:
+            return UUID.randomUUID();
+        }
+    }
+
+    /**
+     * Returns a ULID.
      */
     private UUID getVersionUUID(Instant instant) {
-        // TODO: Use ulid or ksuid.
-        return UUID.randomUUID();
+        ULID.Value value = ulid.nextValue(instant.toEpochMilli());
+        return UUID.nameUUIDFromBytes(value.toBytes());
     }
 
-    private void handleCancel(HttpServerExchange exchange, String uploadId) {
+    private void handleCancel(HttpServerExchange exchange, UUID uploadId) {
         if (exchange.isInIoThread()) {
             exchange.dispatch(this);
             return;
         }
-        uploads.remove(uploadId);
-        UUID versionUUID = uploadsToVersion.remove(uploadId);
-        Disposable disposable = this.disposable.get(versionUUID);
-        disposable.dispose();
-        //FormatConverter.Status status = statuses.remove(versionUUID);
-        //status.dispose();
-
-        exchange.setStatusCode(StatusCodes.OK);
+        Handle cancelled = uploads.remove(uploadId);
+        if (cancelled != null) {
+            cancelled.getDisposable().dispose();
+            exchange.setStatusCode(StatusCodes.OK);
+        } else {
+            exchange.setStatusCode(StatusCodes.GONE);
+        }
     }
 
-    private void handleStatus(HttpServerExchange exchange, String uploadId) throws IOException {
+    private void handleStatus(HttpServerExchange exchange, UUID uploadId) throws IOException {
         if (exchange.isInIoThread()) {
             exchange.dispatch(this);
             return;
         }
 
-        UUID versionUUID = uploadsToVersion.get(uploadId);
-        GSIMDataset dataset = uploads.get(uploadId);
-        FormatConverter.Status status = statuses.get(versionUUID);
+        Handle handle = uploads.get(uploadId);
         exchange.startBlocking();
-        StatusRepresentation representation = new StatusRepresentation(status, versionUUID, uploadId, dataset.getId());
-        mapper.writeValue(exchange.getOutputStream(), representation);
+        mapper.writeValue(exchange.getOutputStream(), new StatusRepresentation(handle));
     }
 
-    private void handleUpload(HttpServerExchange exchange, String uploadId) throws IOException {
+    private void handleUpload(HttpServerExchange exchange, UUID uploadId) throws IOException {
         if (exchange.isInIoThread()) {
             exchange.dispatch(this);
             return;
@@ -139,35 +148,27 @@ public class UploadHandler implements HttpHandler {
             FormatConverter formatConverter = converter.get();
             String mediaType = formatConverter.getMediaType();
 
-            UUID versionId = getVersionUUID(Instant.now());
-            GSIMDataset dataset = uploads.get(uploadId);
-            String datasetId = dataset.getId();
-
-            try (SeekableByteChannel channel = backend.write(String.format("%s/%s", datasetId, versionId))) {
+            Handle handle = uploads.get(uploadId);
+            try (SeekableByteChannel channel = backend.write(handle.getPath())) {
 
                 exchange.startBlocking();
                 FormatConverter.Status status = formatConverter.write(
                         exchange.getInputStream(),
                         channel,
                         mediaType,
-                        dataset
+                        handle.getDataset()
                 );
-                statuses.put(versionId, status);
-                uploadsToVersion.put(uploadId, versionId);
+                handle.setStatus(status);
 
                 Completable.wrap(status)
                         .doOnDispose(() -> LOG.info("Cancelled."))
                         .doOnSubscribe(disposable -> {
                             LOG.info("Subscribed.");
-                            this.disposable.put(versionId, disposable);
+                            handle.setDisposable(disposable);
                         })
                         .subscribeOn(conversionScheduler)
                         .doFinally(() -> {
                             LOG.info("Done.");
-                            uploadsToVersion.remove(uploadId);
-                            uploads.remove(uploadId);
-                            statuses.remove(versionId);
-                            disposable.remove(versionId);
                         }).blockingAwait();
 
                 // TODO: Update GSIM object.
@@ -177,14 +178,29 @@ public class UploadHandler implements HttpHandler {
                 exchange.setStatusCode(StatusCodes.CREATED);
                 exchange.getResponseHeaders().add(
                         Headers.LOCATION,
-                        GetDataHandler.PATH.replace("{" + GetDataHandler.DATA_ID + "}", datasetId)
-                                .replace("{" + GetDataHandler.VERSION_ID + "}", versionId.toString())
+                        GetDataHandler.PATH
+                                .replace("{" + GetDataHandler.DATA_ID + "}", handle.getDataId())
+                                .replace("{" + GetDataHandler.VERSION_ID + "}", handle.getVersionId())
                 );
+            } finally {
+                uploads.remove(uploadId);
             }
 
         } else {
             // TODO: Correct error header.
         }
+    }
+
+    public UUID createUpload(GSIMDataset dataset) {
+        UUID uploadId = UUID.randomUUID();
+        Handle handle = new Handle(
+                dataset,
+                uploadId,
+                getDataUUID(dataset),
+                getVersionUUID(Instant.now())
+        );
+        uploads.put(uploadId, handle);
+        return uploadId;
     }
 
     private Optional<FormatConverter> findFormatConverter(HttpServerExchange exchange) {
@@ -200,45 +216,104 @@ public class UploadHandler implements HttpHandler {
         return Optional.empty();
     }
 
-    /**
-     * Simple jackson binding compatible wrapper.
-     */
-    private static class StatusRepresentation {
-        private final FormatConverter.Status status;
+    public static class Handle {
+
+        private final GSIMDataset dataset;
         private final UUID versionId;
-        private final String uploadId;
-        private final String datasetId;
+        private final UUID dataId;
+        private final UUID uploadId;
+        private FormatConverter.Status status;
+        private Disposable disposable;
 
-        private StatusRepresentation(FormatConverter.Status status, UUID versionId, String uploadId, String datasetId) {
-            this.status = status;
+        public Handle(GSIMDataset dataset, UUID uploadId, UUID dataId, UUID versionId) {
+            this.dataset = dataset;
             this.versionId = versionId;
+            this.dataId = dataId;
             this.uploadId = uploadId;
-            this.datasetId = datasetId;
         }
 
-        @JsonProperty
-        public String getUploadId() {
-            return uploadId;
+        @JsonIgnore
+        public GSIMDataset getDataset() {
+            return dataset;
         }
 
-        @JsonProperty
-        public long readBytes() {
-            return status.readBytes();
+        @JsonIgnore
+        public FormatConverter.Status getStatus() {
+            return status;
         }
 
-        @JsonProperty
-        public long writtenBytes() {
-            return status.writtenBytes();
+        public void setStatus(FormatConverter.Status status) {
+            this.status = status;
         }
 
-        @JsonProperty
-        public UUID getVersionId() {
-            return versionId;
+        @JsonIgnore
+        public Disposable getDisposable() {
+            return disposable;
+        }
+
+        public void setDisposable(Disposable disposable) {
+            this.disposable = disposable;
         }
 
         @JsonProperty
         public String getDatasetId() {
-            return datasetId;
+            return dataset.getId();
+        }
+
+        @JsonProperty
+        public String getUploadId() {
+            return uploadId.toString();
+        }
+
+        @JsonProperty
+        public String getDataId() {
+            return dataId.toString();
+        }
+
+        @JsonProperty
+        public String getVersionId() {
+            return versionId.toString();
+        }
+
+        @JsonProperty
+        public String getPath() {
+            return String.join("/", dataId.toString(), versionId.toString());
+        }
+    }
+
+    /**
+     * Simple jackson binding compatible wrapper.
+     */
+    private static class StatusRepresentation {
+        private final Handle handle;
+
+        private StatusRepresentation(Handle handle) {
+            this.handle = handle;
+        }
+
+        @JsonProperty
+        public String getUploadId() {
+            return handle.getUploadId();
+        }
+
+        @JsonProperty
+        public long readBytes() {
+            return handle.getStatus().readBytes();
+        }
+
+        @JsonProperty
+        public long writtenBytes() {
+            return handle.getStatus().writtenBytes();
+        }
+
+        @JsonProperty
+        public String getVersionId() {
+            return handle.getVersionId();
+        }
+
+        @JsonProperty
+        public String getDatasetId() {
+            return handle.getDatasetId();
         }
     }
 }

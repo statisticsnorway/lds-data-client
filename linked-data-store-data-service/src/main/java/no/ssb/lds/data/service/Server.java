@@ -64,17 +64,19 @@ public class Server {
                 Methods.GET, Methods.HEAD, Methods.OPTIONS
         ));
 
+        // Handles upload and conversion.
+        UploadHandler uploadHandler = new UploadHandler(converters, backend);
+        pathTemplate.add(UploadHandler.PATH, new AllowedMethodsHandler(
+                uploadHandler,
+                Methods.DELETE, Methods.GET, Methods.POST, Methods.OPTIONS
+        ));
+
         // Creates uploads.
         pathTemplate.add(PostDataHandler.PATH, new AllowedMethodsHandler(
-                new PostDataHandler(uploads, clientV1),
+                new PostDataHandler(uploadHandler, clientV1),
                 Methods.POST, Methods.OPTIONS
         ));
 
-        // Handles upload and conversion.
-        pathTemplate.add(UploadHandler.PATH, new AllowedMethodsHandler(
-                new UploadHandler(uploads, converters, backend),
-                Methods.DELETE, Methods.GET, Methods.POST, Methods.OPTIONS
-        ));
 
         builder.addHttpListener(8080, "0.0.0.0", pathTemplate);
 
