@@ -59,10 +59,21 @@ public abstract class AbstractFormatConverter implements FormatConverter {
     protected Schema getSchema(GSIMDataset dataset) {
         List<Schema.Field> fieldList = new ArrayList<>();
         for (GSIMComponent component : dataset.getComponents()) {
-            Schema.Field field = new Schema.Field(component.getName(), Schema.create(getType(component.getType())), "doc", (Object) null);
+            Schema.Field field = new Schema.Field(
+                    component.getName(),
+                    Schema.create(getType(component.getType())),
+                    "...",
+                    (Object) null
+            );
             fieldList.add(field);
         }
-        Schema record = Schema.createRecord("dataset", "", "no.ssb.gsim.dataset", false, fieldList);
+
+        // TODO: Add link back.
+        Schema record = Schema.createRecord(
+                "dataset", "...",
+                "no.ssb.gsim.dataset",
+                false,
+                fieldList);
         record.addProp("no.ssb.gsim.dataset.id", dataset.getId());
         return record;
     }
