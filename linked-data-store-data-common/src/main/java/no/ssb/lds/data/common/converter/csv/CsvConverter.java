@@ -3,7 +3,6 @@ package no.ssb.lds.data.common.converter.csv;
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import no.ssb.lds.data.common.converter.AbstractFormatConverter;
-import no.ssb.lds.data.common.model.GSIMComponent;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -12,9 +11,6 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.parquet.example.data.simple.SimpleGroupFactory;
-import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.MessageTypeParser;
 
 import java.io.BufferedWriter;
 import java.io.IOException;

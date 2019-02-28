@@ -18,7 +18,6 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <groupId>no.ssb.lds.data</groupId>
     <artifactId>linked-data-store-data-local</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 

@@ -2,16 +2,15 @@ package no.ssb.lds.data.common.converter;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
-import no.ssb.lds.data.common.utils.InputStreamCounter;
-import no.ssb.lds.data.common.utils.OutputStreamCounter;
-import no.ssb.lds.data.common.utils.SeekableByteChannelCounter;
 import no.ssb.lds.data.common.model.GSIMComponent;
 import no.ssb.lds.data.common.model.GSIMDataset;
 import no.ssb.lds.data.common.model.GSIMType;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
+import no.ssb.lds.data.common.utils.InputStreamCounter;
+import no.ssb.lds.data.common.utils.OutputStreamCounter;
+import no.ssb.lds.data.common.utils.SeekableByteChannelCounter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.parquet.example.data.Group;
 
 import java.io.IOException;
 import java.io.InputStream;

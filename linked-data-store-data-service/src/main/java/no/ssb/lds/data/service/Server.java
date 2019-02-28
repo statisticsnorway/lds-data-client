@@ -10,7 +10,6 @@ import no.ssb.lds.data.client.ClientV1;
 import no.ssb.lds.data.common.BinaryBackend;
 import no.ssb.lds.data.common.converter.FormatConverter;
 import no.ssb.lds.data.common.converter.csv.CsvConverter;
-import no.ssb.lds.data.common.model.GSIMDataset;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import no.ssb.lds.data.service.handlers.GetDataHandler;
 import no.ssb.lds.data.service.handlers.PostDataHandler;
@@ -20,7 +19,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
 
@@ -29,7 +27,7 @@ public class Server {
         Undertow.Builder builder = Undertow.builder();
 
         Map<String, String> config = new HashMap<>();
-        config.put("lds.url", "http://localhost:9090/");
+        config.put("lds.url", "http://35.228.232.124/lds/"); // http://lds:9090/");
         config.put("data", "gs://ssb-data-a/data/");
         config.put("backend", "HADOOP");
 
@@ -49,9 +47,6 @@ public class Server {
 
         // Fetch the datasets from LDS.
         ClientV1 clientV1 = new ClientV1(config.get("lds.url") + "graphql");
-
-        // List of uploads.
-        ConcurrentHashMap<String, GSIMDataset> uploads = new ConcurrentHashMap<>();
 
         // Supported converters.
         List<FormatConverter> converters = List.of(new CsvConverter(new ParquetProvider()));
@@ -76,7 +71,6 @@ public class Server {
                 new PostDataHandler(uploadHandler, clientV1),
                 Methods.POST, Methods.OPTIONS
         ));
-
 
         builder.addHttpListener(8080, "0.0.0.0", pathTemplate);
 
