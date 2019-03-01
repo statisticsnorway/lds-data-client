@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
+import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.AllowedMethodsHandler;
+import io.undertow.server.handlers.GracefulShutdownHandler;
 import io.undertow.server.handlers.PathTemplateHandler;
 import io.undertow.util.Methods;
 import no.ssb.config.DynamicConfiguration;
@@ -19,6 +21,8 @@ import no.ssb.lds.data.common.parquet.ParquetProvider;
 import no.ssb.lds.data.service.handlers.GetDataHandler;
 import no.ssb.lds.data.service.handlers.PostDataHandler;
 import no.ssb.lds.data.service.handlers.UploadHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -29,41 +33,32 @@ import java.util.TreeMap;
 
 public class Server {
 
+    private static final Logger logger = LoggerFactory.getLogger(Server.class);
+
     public static void main(String[] args) throws IOException {
 
         // TODO: Fix number parsing.
         Configuration configuration = getConfiguration();
 
-//        Configuration configuration = new Configuration();
-//        configuration.setParquet(new Configuration.Parquet());
-//        configuration.setGoogleCloud(new Configuration.GoogleCloud());
-//        configuration.getParquet().setPageSize(8 * 1024 * 1024);
-//        configuration.getParquet().setRowGroupSize(8 * 8 * 1024 * 1024);
-
-
         Undertow.Builder builder = Undertow.builder();
 
-        // TODO: Make this dynamic.
-        BinaryBackend backend = new GoogleCloudStorageBackend(configuration);
-
-//        if (backendType.equals("LOCAL")) {
-//            backend = new LocalBackend(prefix);
-//        } else if (backendType.equals("HADOOP")) {
-//            Configuration configuration = new Configuration();
-//            FileSystem fileSystem = FileSystem.newInstance(URI.create("file://home/hadrien/Projects/SSB/linked-data-store-data/data/hadoop/"), configuration);
-//            backend = new HadoopBackend(fileSystem);
-//        } else {
-//            throw new IllegalArgumentException("unkown backend " + backendType);
-//        }
-
+        logger.info("Initializing lds client");
         // Fetch the datasets from LDS.
         ClientV1 clientV1 = new ClientV1(
                 configuration.getLdsServer().toString() + configuration.getGraphqlPath()
         );
 
-        // Supported converters.
-        List<FormatConverter> converters = List.of(new CsvConverter(new ParquetProvider(configuration)));
+        logger.info("Initializing google cloud storage backend");
+        BinaryBackend backend = new GoogleCloudStorageBackend(configuration);
 
+        // Supported converters.
+        logger.info("Initializing converters");
+        List<FormatConverter> converters = List.of(new CsvConverter(new ParquetProvider(configuration)));
+        for (FormatConverter converter : converters) {
+            logger.info("Converter {}", converter);
+        }
+
+        logger.info("Starting undertow");
         PathTemplateHandler pathTemplate = Handlers.pathTemplate(true);
 
         // Handles get requests.
@@ -85,10 +80,29 @@ public class Server {
                 Methods.POST, Methods.OPTIONS
         ));
 
-        builder.addHttpListener(8080, "0.0.0.0", pathTemplate);
 
+        HttpHandler rootHandler;
+        if (logger.isTraceEnabled()) {
+            rootHandler = Handlers.requestDump(pathTemplate);
+        } else {
+            rootHandler = pathTemplate;
+        }
+
+        // Wait for all requests to complete
+        GracefulShutdownHandler shutdownHandler = Handlers.gracefulShutdown(rootHandler);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("Shutting down");
+            shutdownHandler.shutdown();
+            try {
+                logger.info("Waiting for all requests to complete...");
+                shutdownHandler.awaitShutdown();
+            } catch (InterruptedException e) {
+                logger.warn("Could not shutdown gracefully");
+            }
+        }, "undertow shutdown hook"));
+
+        builder.addHttpListener(8080, "0.0.0.0", shutdownHandler);
         builder.build().start();
-
     }
 
     private static Map<String, Object> splitMap(SortedMap<String, String> config) {
@@ -104,11 +118,7 @@ public class Server {
                     SortedMap<String, String> subMap = (TreeMap<String, String>) map.get(baseKey);
                     subMap.put(String.join(".", parts.subList(1, parts.size())), config.get(key));
                 } else {
-                    // TODO: Warn about dropped root properties.
-                    // # foo is dropped.
-                    // foo.bar=xx
-                    // foo=yy
-                    //
+                    logger.warn("Root configuration {}={} dropped", baseKey, map.get(baseKey));
                 }
             } else {
                 map.put(key, config.get(key));
@@ -140,7 +150,9 @@ public class Server {
             mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
             Map<String, Object> objectMap = splitMap(new TreeMap<>(configuration.asMap()));
-            return mapper.readValue(mapper.writeValueAsString(objectMap), Configuration.class);
+            String stringConfiguration = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(objectMap);
+            logger.debug("Got configuration: \n" + stringConfiguration);
+            return mapper.readValue(stringConfiguration, Configuration.class);
         } catch (Exception e) {
             throw new IOException("Could not create configuration: " + e.getMessage(), e);
         }
