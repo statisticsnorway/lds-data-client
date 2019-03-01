@@ -4,11 +4,14 @@ import java.net.URL;
 
 public class Configuration {
 
+    private String host;
+    private Integer port;
     private URL ldsServer;
     private String graphqlPath;
     private String dataPrefix;
     private GoogleCloud googleCloud;
     private Parquet parquet;
+
     public Configuration() {
     }
 
@@ -50,6 +53,22 @@ public class Configuration {
 
     public void setLdsServer(URL ldsServer) {
         this.ldsServer = ldsServer;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public Integer getPort() {
+        return port;
+    }
+
+    public void setPort(Integer port) {
+        this.port = port;
     }
 
     public static class GoogleCloud {

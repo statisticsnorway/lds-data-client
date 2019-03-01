@@ -40,8 +40,6 @@ public class Server {
         // TODO: Fix number parsing.
         Configuration configuration = getConfiguration();
 
-        Undertow.Builder builder = Undertow.builder();
-
         logger.info("Initializing lds client");
         // Fetch the datasets from LDS.
         ClientV1 clientV1 = new ClientV1(
@@ -58,7 +56,6 @@ public class Server {
             logger.info("Converter {}", converter);
         }
 
-        logger.info("Starting undertow");
         PathTemplateHandler pathTemplate = Handlers.pathTemplate(true);
 
         // Handles get requests.
@@ -101,8 +98,10 @@ public class Server {
             }
         }, "undertow shutdown hook"));
 
-        builder.addHttpListener(8080, "0.0.0.0", shutdownHandler);
-        builder.build().start();
+        Integer port = configuration.getPort();
+        String host = configuration.getHost();
+        logger.info("Starting undertow on {}:{}", host, port);
+        Undertow.builder().addHttpListener(port, host, shutdownHandler).build().start();
     }
 
     private static Map<String, Object> splitMap(SortedMap<String, String> config) {
@@ -154,7 +153,7 @@ public class Server {
             logger.debug("Got configuration: \n" + stringConfiguration);
             return mapper.readValue(stringConfiguration, Configuration.class);
         } catch (Exception e) {
-            throw new IOException("Could not create configuration: " + e.getMessage(), e);
+            throw new IOException("Configuration error: " + e.getMessage(), e);
         }
     }
 }
