@@ -19,7 +19,11 @@
             <artifactId>undertow-core</artifactId>
             <version>2.0.1.Final</version>
         </dependency>
-
+        <dependency>
+            <groupId>no.ssb.config</groupId>
+            <artifactId>dynamic-configuration</artifactId>
+            <version>0.4</version>
+        </dependency>
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
             <artifactId>linked-data-store-data-common</artifactId>

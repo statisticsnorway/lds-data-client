@@ -1,13 +1,18 @@
 package no.ssb.lds.data.service;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.server.handlers.AllowedMethodsHandler;
 import io.undertow.server.handlers.PathTemplateHandler;
 import io.undertow.util.Methods;
+import no.ssb.config.DynamicConfiguration;
+import no.ssb.config.StoreBasedDynamicConfiguration;
 import no.ssb.lds.data.GoogleCloudStorageBackend;
 import no.ssb.lds.data.client.ClientV1;
 import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.common.Configuration;
 import no.ssb.lds.data.common.converter.FormatConverter;
 import no.ssb.lds.data.common.converter.csv.CsvConverter;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
@@ -16,24 +21,30 @@ import no.ssb.lds.data.service.handlers.PostDataHandler;
 import no.ssb.lds.data.service.handlers.UploadHandler;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 public class Server {
 
     public static void main(String[] args) throws IOException {
 
+        // TODO: Fix number parsing.
+        Configuration configuration = getConfiguration();
+
+//        Configuration configuration = new Configuration();
+//        configuration.setParquet(new Configuration.Parquet());
+//        configuration.setGoogleCloud(new Configuration.GoogleCloud());
+//        configuration.getParquet().setPageSize(8 * 1024 * 1024);
+//        configuration.getParquet().setRowGroupSize(8 * 8 * 1024 * 1024);
+
+
         Undertow.Builder builder = Undertow.builder();
 
-        Map<String, String> config = new HashMap<>();
-        config.put("lds.url", "http://35.228.232.124/lds/"); // http://lds:9090/");
-        config.put("data", "gs://ssb-data-a/data/");
-        config.put("backend", "HADOOP");
-
-        String backendType = config.get("backend");
-        String prefix = config.get("data");
-        BinaryBackend backend = new GoogleCloudStorageBackend(prefix);
+        // TODO: Make this dynamic.
+        BinaryBackend backend = new GoogleCloudStorageBackend(configuration);
 
 //        if (backendType.equals("LOCAL")) {
 //            backend = new LocalBackend(prefix);
@@ -46,10 +57,12 @@ public class Server {
 //        }
 
         // Fetch the datasets from LDS.
-        ClientV1 clientV1 = new ClientV1(config.get("lds.url") + "graphql");
+        ClientV1 clientV1 = new ClientV1(
+                configuration.getLdsServer().toString() + configuration.getGraphqlPath()
+        );
 
         // Supported converters.
-        List<FormatConverter> converters = List.of(new CsvConverter(new ParquetProvider()));
+        List<FormatConverter> converters = List.of(new CsvConverter(new ParquetProvider(configuration)));
 
         PathTemplateHandler pathTemplate = Handlers.pathTemplate(true);
 
@@ -76,5 +89,60 @@ public class Server {
 
         builder.build().start();
 
+    }
+
+    private static Map<String, Object> splitMap(SortedMap<String, String> config) {
+        TreeMap<String, Object> map = new TreeMap<>();
+        for (String key : config.keySet()) {
+            List<String> parts = Arrays.asList(key.split("\\."));
+            if (parts.size() > 1) {
+                String baseKey = parts.get(0);
+                if (!map.containsKey(baseKey)) {
+                    map.put(baseKey, new TreeMap<String, String>());
+                }
+                if (map.get(baseKey) instanceof TreeMap) {
+                    SortedMap<String, String> subMap = (TreeMap<String, String>) map.get(baseKey);
+                    subMap.put(String.join(".", parts.subList(1, parts.size())), config.get(key));
+                } else {
+                    // TODO: Warn about dropped root properties.
+                    // # foo is dropped.
+                    // foo.bar=xx
+                    // foo=yy
+                    //
+                }
+            } else {
+                map.put(key, config.get(key));
+            }
+        }
+        for (String key : map.keySet()) {
+            Object value = map.get(key);
+            if (value instanceof SortedMap) {
+                map.replace(key, splitMap((SortedMap<String, String>) value));
+            }
+        }
+        return map;
+    }
+
+    /**
+     * Parse and transform the configuration.
+     */
+    private static Configuration getConfiguration() throws IOException {
+        try {
+            DynamicConfiguration configuration = new StoreBasedDynamicConfiguration.Builder()
+                    .propertiesResource("application.properties")
+                    .propertiesResource("application_override.properties")
+                    .environment("LSD_DATA_")
+                    .systemProperties()
+                    .build();
+
+            // Write the configuration to JSON then parse it again.
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+            Map<String, Object> objectMap = splitMap(new TreeMap<>(configuration.asMap()));
+            return mapper.readValue(mapper.writeValueAsString(objectMap), Configuration.class);
+        } catch (Exception e) {
+            throw new IOException("Could not create configuration: " + e.getMessage(), e);
+        }
     }
 }

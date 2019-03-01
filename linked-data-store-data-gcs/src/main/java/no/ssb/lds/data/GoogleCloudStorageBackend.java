@@ -8,6 +8,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.common.Configuration;
 
 import java.io.IOException;
 import java.net.URI;
@@ -20,31 +21,31 @@ import java.nio.channels.SeekableByteChannel;
  */
 public class GoogleCloudStorageBackend implements BinaryBackend {
 
-    public static final int CHUNK_SIZE = 1048576;
     private final Storage storage;
     private final String prefix;
+    private final Integer writeChunkSize;
+    private final Integer readChunkSize;
 
-    public GoogleCloudStorageBackend(String prefix) {
+    public GoogleCloudStorageBackend(Configuration configuration) {
         this.storage = StorageOptions.getDefaultInstance().getService();
-        this.prefix = prefix;
-    }
-
-    public GoogleCloudStorageBackend(Storage storage, String prefix) {
-        this.storage = storage;
-        this.prefix = prefix;
+        this.prefix = configuration.getDataPrefix();
+        this.writeChunkSize = configuration.getGoogleCloud().getWriteChunkSize();
+        this.readChunkSize = configuration.getGoogleCloud().getReadChunkSize();
     }
 
     @Override
     public SeekableByteChannel read(String path) throws IOException {
         Blob blob = storage.get(getBlobId(path));
         ReadChannel reader = blob.reader();
-        return new SeekableReadChannel(reader, CHUNK_SIZE, blob.getSize());
+        reader.setChunkSize(readChunkSize);
+        return new SeekableReadChannel(reader, readChunkSize, blob.getSize());
     }
 
     @Override
     public SeekableByteChannel write(String path) throws IOException {
         Blob blob = storage.create(BlobInfo.newBuilder(getBlobId(path)).build());
         WriteChannel writer = blob.writer();
+        writer.setChunkSize(writeChunkSize);
         return new SeekableByteChannel() {
 
             long pos = 0;

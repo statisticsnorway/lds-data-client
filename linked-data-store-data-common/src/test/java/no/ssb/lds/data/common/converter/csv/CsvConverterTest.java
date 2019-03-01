@@ -1,10 +1,11 @@
 package no.ssb.lds.data.common.converter.csv;
 
 import io.reactivex.Completable;
-import no.ssb.lds.data.common.utils.SeekableInMemoryByteChannel;
+import no.ssb.lds.data.common.Configuration;
 import no.ssb.lds.data.common.model.GSIMDataset;
 import no.ssb.lds.data.common.model.GSIMDatasetTest;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
+import no.ssb.lds.data.common.utils.SeekableInMemoryByteChannel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +28,13 @@ class CsvConverterTest {
 
     @Test
     void testRead() throws IOException {
-        CsvConverter converter = new CsvConverter(new ParquetProvider());
+        Configuration configuration = new Configuration();
+        configuration.setParquet(new Configuration.Parquet());
+        configuration.getParquet().setPageSize(8 * 1024 * 1024);
+        configuration.getParquet().setPageSize(8 * 1024 * 1024);
+        configuration.getParquet().setRowGroupSize(8 * 8 * 1024 * 1024);
+
+        CsvConverter converter = new CsvConverter(new ParquetProvider(configuration));
         InputStream csvInput = new ByteArrayInputStream((
                 "PERSON_ID,INCOME,GENDER,MARITAL_STATUS,MUNICIPALITY,DATA_QUALITY\r\n" +
                         "\"person number\",1234,MAN,SINGLE,\"0556\",GOOD\r\n" +
