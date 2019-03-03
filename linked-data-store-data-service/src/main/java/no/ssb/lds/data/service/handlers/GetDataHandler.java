@@ -3,6 +3,7 @@ package no.ssb.lds.data.service.handlers;
 import io.reactivex.Completable;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
+import io.undertow.server.handlers.ResponseCodeHandler;
 import io.undertow.util.Headers;
 import io.undertow.util.Methods;
 import io.undertow.util.PathTemplateMatch;
@@ -22,6 +23,7 @@ public class GetDataHandler implements HttpHandler {
     public static final String DATA_ID = "dataId";
     public static final String VERSION_ID = "versionId";
     public static final String PATH = "/data/{" + DATA_ID + "}/{" + VERSION_ID + "}";
+    public static final String LATEST = "latest";
 
     private final BinaryBackend backend;
     private final ClientV1 client;
@@ -45,9 +47,20 @@ public class GetDataHandler implements HttpHandler {
         String dataId = parameters.get(DATA_ID);
         String versionId = parameters.get(VERSION_ID);
 
+        String path;
+        if (versionId.equals(LATEST)) {
+            path = backend.list(dataId).blockingFirst();
+            if (path == null) {
+                ResponseCodeHandler.HANDLE_404.handleRequest(exchange);
+                return;
+            }
+        } else {
+            path = String.format("%s/%s", dataId, versionId);
+        }
+
         GSIMDataset dataset = client.getDataset("todo");
 
-        SeekableByteChannel channel = backend.read(String.format("%s/%s", dataId, versionId));
+        SeekableByteChannel channel = backend.read(path);
 
         Optional<FormatConverter> converter = findFormatConverter(exchange);
         if (converter.isPresent()) {

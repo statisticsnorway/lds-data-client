@@ -1,5 +1,6 @@
 package no.ssb.lds.data;
 
+import io.reactivex.Flowable;
 import no.ssb.lds.data.common.BinaryBackend;
 
 import java.io.File;
@@ -15,6 +16,11 @@ public class LocalBackend implements BinaryBackend {
 
     public LocalBackend(String prefix) {
         this.prefix = prefix;
+    }
+
+    @Override
+    public Flowable<String> list(String path) throws IOException {
+        return null;
     }
 
     @Override

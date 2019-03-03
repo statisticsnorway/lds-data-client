@@ -1,5 +1,6 @@
 package no.ssb.lds.data;
 
+import com.google.api.gax.paging.Page;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
@@ -7,6 +8,8 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.collect.Iterables;
+import io.reactivex.Flowable;
 import no.ssb.lds.data.common.BinaryBackend;
 import no.ssb.lds.data.common.Configuration;
 
@@ -31,6 +34,26 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
         this.prefix = configuration.getDataPrefix();
         this.writeChunkSize = configuration.getGoogleCloud().getWriteChunkSize();
         this.readChunkSize = configuration.getGoogleCloud().getReadChunkSize();
+    }
+
+    @Override
+    public Flowable<String> list(String path) throws IOException {
+        BlobId id = getBlobId(path);
+        return Flowable.defer(() -> {
+            Page<Blob> pages = storage.list(id.getBucket(), Storage.BlobListOption.prefix(id.getName()));
+            return Flowable.fromIterable(pages.iterateAll());
+        }).map(blob -> {
+            return fuse(prefix, blob.getName()).replaceFirst(prefix, "");
+        });
+    }
+
+    private static String fuse(String start, String end) {
+        for (int i = 0; i < start.length(); i++) {
+            if (end.startsWith(start.substring(i))) {
+                return start.substring(0, i) + end;
+            }
+        }
+        return start + end;
     }
 
     @Override

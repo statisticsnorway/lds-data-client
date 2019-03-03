@@ -1,5 +1,6 @@
 package no.ssb.lds.data;
 
+import io.reactivex.Flowable;
 import no.ssb.lds.data.common.BinaryBackend;
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -17,6 +18,11 @@ public class HadoopBackend implements BinaryBackend {
 
     public HadoopBackend(FileSystem fileSystem) {
         this.fileSystem = fileSystem;
+    }
+
+    @Override
+    public Flowable<String> list(String path) throws IOException {
+        return null;
     }
 
     @Override
