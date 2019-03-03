@@ -1,0 +1,65 @@
+version: '3.3'
+
+services:
+  proxy:
+    image: nginx:alpine
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./proxy.conf:/etc/nginx/conf.d/default.conf
+    command: [nginx-debug, '-g', 'daemon off;']
+    depends_on:
+      - lds
+      - gsim
+  data:
+    image: lds-data:latest
+    expose:
+      - "8080"
+    depends_on:
+      - lds
+    volumes:
+      - ./gcs-sa.json:/gcs-sa.json
+    environment:
+      - LSD_DATA_
+      - GOOGLE_APPLICATION_CREDENTIALS=/gcs-sa.json
+  lds:
+    image: lds-neo4j:dev
+    expose:
+      - "9090"
+    volumes:
+      - ldsneo4jconf:/conf:ro
+      - ldsneo4jschemas:/schemas:ro
+    depends_on:
+      - db-neo4j
+  gsim:
+    image: statisticsnorway/gsim-browser:0.2
+    expose:
+      - "5000"
+    depends_on:
+      - lds
+    environment:
+      - REACT_APP_LDS=/lds/
+  db-neo4j:
+    image: neo4j:3.5
+    expose:
+      - "7474"
+      - "7687"
+    volumes:
+      - ldsneo4jdb:/data
+    environment:
+      - NEO4J_AUTH
+volumes:
+  ldsneo4jdb:
+  ldsneo4jconf:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${CONF_FOLDER}
+      o: bind
+  ldsneo4jschemas:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${SCHEMA_FOLDER}
+      o: bind
