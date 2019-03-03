@@ -25,7 +25,7 @@ import static io.reactivex.Flowable.fromIterable;
 
 public class CsvConverter extends AbstractFormatConverter {
 
-    public static final String MEDIA_TYPE = "text/csv";
+    private static final String MEDIA_TYPE = "text/csv";
 
     public CsvConverter(ParquetProvider provider) {
         super(provider);

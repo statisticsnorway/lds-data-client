@@ -17,6 +17,7 @@ import no.ssb.lds.data.common.BinaryBackend;
 import no.ssb.lds.data.common.Configuration;
 import no.ssb.lds.data.common.converter.FormatConverter;
 import no.ssb.lds.data.common.converter.csv.CsvConverter;
+import no.ssb.lds.data.common.converter.csv.JsonConverter;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import no.ssb.lds.data.service.handlers.GetDataHandler;
 import no.ssb.lds.data.service.handlers.PostDataHandler;
@@ -51,7 +52,11 @@ public class Server {
 
         // Supported converters.
         logger.info("Initializing converters");
-        List<FormatConverter> converters = List.of(new CsvConverter(new ParquetProvider(configuration)));
+        ParquetProvider parquetProvider = new ParquetProvider(configuration);
+        List<FormatConverter> converters = List.of(
+                new CsvConverter(parquetProvider),
+                new JsonConverter(parquetProvider, new ObjectMapper())
+        );
         for (FormatConverter converter : converters) {
             logger.info("Converter {}", converter);
         }
