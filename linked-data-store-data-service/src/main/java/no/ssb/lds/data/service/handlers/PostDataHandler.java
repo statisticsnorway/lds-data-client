@@ -16,7 +16,7 @@ import static io.undertow.util.Headers.LOCATION;
 public class PostDataHandler implements HttpHandler {
 
     private static final String DATA_ID = "dataId";
-    public static final String PATH = "/data/{" + DATA_ID + "}";
+    public static final String PATH = "/data/{" + DATA_ID + "}/upload";
 
     private final UploadHandler uploadHandler;
 

@@ -21,6 +21,7 @@ services:
     volumes:
       - ./gcs-sa.json:/gcs-sa.json
     environment:
+      - LSD_DATA_ldsServer=http://lds:9090
       - GOOGLE_APPLICATION_CREDENTIALS=/gcs-sa.json
   lds:
     image: lds-neo4j:dev

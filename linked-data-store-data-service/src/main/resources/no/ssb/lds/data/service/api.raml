@@ -39,7 +39,16 @@ protocols: [ HTTPS ]
   uriParameters:
       datasetId:
         type: string
-  post:
+  get:
+    description: List all the versions for a given dataset.
+    responses:
+      200:
+        body:
+          application/no.ssb.lds.data.versions+json:
+          application/json:
+  /upload:
+    description: Upload the data. TODO: Async switch.
+
   /{versionId}:
     description: The data for this dataset and data version.
     get:

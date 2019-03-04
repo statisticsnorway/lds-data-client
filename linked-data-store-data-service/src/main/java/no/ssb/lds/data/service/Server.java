@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
+import io.undertow.predicate.Predicates;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.AllowedMethodsHandler;
 import io.undertow.server.handlers.GracefulShutdownHandler;
@@ -20,6 +21,7 @@ import no.ssb.lds.data.common.converter.csv.CsvConverter;
 import no.ssb.lds.data.common.converter.csv.JsonConverter;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import no.ssb.lds.data.service.handlers.GetDataHandler;
+import no.ssb.lds.data.service.handlers.ListVersionsHandler;
 import no.ssb.lds.data.service.handlers.PostDataHandler;
 import no.ssb.lds.data.service.handlers.UploadHandler;
 import org.slf4j.Logger;
@@ -76,12 +78,17 @@ public class Server {
                 Methods.DELETE, Methods.GET, Methods.POST, Methods.OPTIONS
         ));
 
+        // Handles get requests.
+        pathTemplate.add(ListVersionsHandler.PATH, new AllowedMethodsHandler(
+                new ListVersionsHandler(parquetProvider, backend),
+                Methods.GET, Methods.HEAD, Methods.OPTIONS
+        ));
+
         // Creates uploads.
         pathTemplate.add(PostDataHandler.PATH, new AllowedMethodsHandler(
                 new PostDataHandler(uploadHandler, clientV1),
-                Methods.POST, Methods.OPTIONS
+                Methods.GET, Methods.POST, Methods.OPTIONS
         ));
-
 
         HttpHandler rootHandler;
         if (logger.isTraceEnabled()) {
