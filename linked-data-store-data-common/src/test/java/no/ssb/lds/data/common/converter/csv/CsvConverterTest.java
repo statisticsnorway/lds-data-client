@@ -2,6 +2,7 @@ package no.ssb.lds.data.common.converter.csv;
 
 import io.reactivex.Completable;
 import no.ssb.lds.data.common.Configuration;
+import no.ssb.lds.data.common.converter.FormatConverter.Cursor;
 import no.ssb.lds.data.common.model.GSIMDataset;
 import no.ssb.lds.data.common.model.GSIMDatasetTest;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
@@ -58,7 +59,7 @@ class CsvConverterTest {
         ByteArrayOutputStream csvOutput = new ByteArrayOutputStream();
 
 
-        Completable.wrap(converter.read(parquetInput, csvOutput, "", dataset))
+        Completable.wrap(converter.read(parquetInput, csvOutput, "", dataset, new Cursor<>(0, 0L)))
                 .blockingAwait();
 
         System.out.println(csvOutput);

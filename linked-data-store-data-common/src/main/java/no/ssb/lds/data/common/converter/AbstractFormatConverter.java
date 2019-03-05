@@ -11,6 +11,8 @@ import no.ssb.lds.data.common.utils.OutputStreamCounter;
 import no.ssb.lds.data.common.utils.SeekableByteChannelCounter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.parquet.filter.PagedRecordFilter;
+import org.apache.parquet.filter2.compat.FilterCompat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,6 +20,8 @@ import java.io.OutputStream;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.parquet.filter2.compat.FilterCompat.*;
 
 /**
  * Converts from a mediatype to parquet and back;
@@ -101,7 +105,9 @@ public abstract class AbstractFormatConverter implements FormatConverter {
     }
 
     @Override
-    public final Status read(SeekableByteChannel input, OutputStream output, String mimeType, GSIMDataset dataset) {
+    public final Status read(SeekableByteChannel input, OutputStream output, String mimeType, GSIMDataset dataset,
+                             Cursor<Long> cursor
+    ) {
 
         // Wrap input and output to count bytes.
         Status status = new Status();
@@ -109,9 +115,11 @@ public abstract class AbstractFormatConverter implements FormatConverter {
         OutputStreamCounter countedOutput = new OutputStreamCounter(output, status);
         Schema schema = getSchema(dataset);
 
+        Filter filter = FilterCompat.get(PagedRecordFilter.page(cursor.getAfter() - 1, cursor.getNext()));
+
         // Back pressured.
         Flowable<GenericRecord> groups = Flowable.generate(() -> {
-            return provider.getReader(countedInput, schema);
+            return provider.getReader(countedInput, schema, filter);
         }, (reader, emitter) -> {
             try {
                 GenericRecord nextGroup = reader.read();

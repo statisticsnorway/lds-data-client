@@ -8,7 +8,6 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import com.google.common.collect.Iterables;
 import io.reactivex.Flowable;
 import no.ssb.lds.data.common.BinaryBackend;
 import no.ssb.lds.data.common.Configuration;
@@ -18,6 +17,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
+import java.util.Comparator;
 
 /**
  * A simple BinaryBackend for Google Cloud Storage.
@@ -36,6 +36,15 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
         this.readChunkSize = configuration.getGoogleCloud().getReadChunkSize();
     }
 
+    private static String fuse(String start, String end) {
+        for (int i = 0; i < start.length(); i++) {
+            if (end.startsWith(start.substring(i))) {
+                return start.substring(0, i) + end;
+            }
+        }
+        return start + end;
+    }
+
     @Override
     public Flowable<String> list(String path) throws IOException {
         BlobId id = getBlobId(path);
@@ -44,16 +53,7 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
             return Flowable.fromIterable(pages.iterateAll());
         }).map(blob -> {
             return fuse(prefix, blob.getName()).replaceFirst(prefix, "");
-        });
-    }
-
-    private static String fuse(String start, String end) {
-        for (int i = 0; i < start.length(); i++) {
-            if (end.startsWith(start.substring(i))) {
-                return start.substring(0, i) + end;
-            }
-        }
-        return start + end;
+        }).sorted(Comparator.reverseOrder());
     }
 
     @Override

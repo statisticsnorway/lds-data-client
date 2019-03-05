@@ -36,7 +36,26 @@ public interface FormatConverter {
      *
      * @return a {@link CompletableSource} with read/write status.
      */
-    Status read(SeekableByteChannel input, OutputStream output, String mimeType, GSIMDataset dataset);
+    Status read(SeekableByteChannel input, OutputStream output, String mimeType, GSIMDataset dataset,
+                Cursor<Long> cursor);
+
+    class Cursor<T> {
+        private final T after;
+        private final Integer next;
+
+        public Cursor(Integer next, T after) {
+            this.after = after;
+            this.next = next;
+        }
+
+        public T getAfter() {
+            return after;
+        }
+
+        public Integer getNext() {
+            return next;
+        }
+    }
 
     class Status implements CompletableSource {
 

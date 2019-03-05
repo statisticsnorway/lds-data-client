@@ -21,9 +21,10 @@ import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Objects;
 
+import static org.apache.parquet.filter2.compat.FilterCompat.Filter;
+
 public class ParquetProvider {
 
-    public static final int CHUNK_SIZE = 8 * 1024 * 1024; // 8MB
     private final Configuration configuration;
 
     public ParquetProvider(Configuration configuration) {
@@ -37,29 +38,12 @@ public class ParquetProvider {
         return ParquetFileReader.open(new SeekableByteChannelInputFile(input));
     }
 
-    public ParquetReader<GenericRecord> getReader(SeekableByteChannel input, Schema schema) throws IOException {
-        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(new InputFile() {
-
-            @Override
-            public long getLength() throws IOException {
-                return input.size();
-            }
-
-            @Override
-            public SeekableInputStream newStream() throws IOException {
-                return new DelegatingSeekableInputStream(Channels.newInputStream(input)) {
-                    @Override
-                    public long getPos() throws IOException {
-                        return input.position();
-                    }
-
-                    @Override
-                    public void seek(long newPos) throws IOException {
-                        input.position(newPos);
-                    }
-                };
-            }
-        }).build();
+    public ParquetReader<GenericRecord> getReader(SeekableByteChannel input, Schema schema, Filter filter)
+            throws IOException {
+        SeekableByteChannelInputFile inputFile = new SeekableByteChannelInputFile(input);
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(inputFile)
+                .withFilter(filter)
+                .build();
         return reader;
     }
 
@@ -98,7 +82,7 @@ public class ParquetProvider {
         }).withSchema(schema)
                 .withCompressionCodec(CompressionCodecName.SNAPPY)
                 .withPageSize(configuration.getParquet().getPageSize())
-                .withRowGroupSize(CHUNK_SIZE * 4)
+                .withRowGroupSize(configuration.getParquet().getRowGroupSize())
                 .build();
         return writer;
     }
