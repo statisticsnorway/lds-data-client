@@ -67,11 +67,8 @@ public class ListVersionsHandler implements HttpHandler {
             return;
         }
 
-        HeaderMap responseHeaders = exchange.getResponseHeaders();
-        responseHeaders.add(new HttpString("Access-Control-Allow-Origin"), "*");
-        responseHeaders.add(new HttpString("Access-Control-Allow-Headers"), "*");
-
         if (Methods.OPTIONS.equals(exchange.getRequestMethod())) {
+            HeaderMap responseHeaders = exchange.getResponseHeaders();
             exchange.setStatusCode(StatusCodes.OK);
             responseHeaders.add(Headers.ALLOW, Methods.GET_STRING);
             responseHeaders.add(Headers.ALLOW, Methods.OPTIONS_STRING);

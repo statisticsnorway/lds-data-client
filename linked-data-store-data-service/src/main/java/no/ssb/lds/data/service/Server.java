@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
-import io.undertow.predicate.Predicates;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.AllowedMethodsHandler;
 import io.undertow.server.handlers.GracefulShutdownHandler;
@@ -96,6 +95,11 @@ public class Server {
         } else {
             rootHandler = pathTemplate;
         }
+
+        rootHandler = Handlers.header(rootHandler, "Access-Control-Allow-Origin", "*");
+        rootHandler = Handlers.header(rootHandler, "Access-Control-Allow-Headers", "*");
+        rootHandler = Handlers.header(rootHandler, "Access-Control-Expose-Headers", "*");
+
 
         // Wait for all requests to complete
         GracefulShutdownHandler shutdownHandler = Handlers.gracefulShutdown(rootHandler);
