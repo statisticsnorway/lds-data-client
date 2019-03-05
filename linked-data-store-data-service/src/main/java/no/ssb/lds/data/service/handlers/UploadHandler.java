@@ -107,7 +107,10 @@ public class UploadHandler implements HttpHandler {
      */
     private UUID getVersionUUID(Instant instant) {
         ULID.Value value = ulid.nextValue(instant.toEpochMilli());
-        return UUID.nameUUIDFromBytes(value.toBytes());
+        return new UUID(
+                value.getMostSignificantBits(),
+                value.getLeastSignificantBits()
+        );
     }
 
     private void handleCancel(HttpServerExchange exchange, UUID uploadId) {
