@@ -2,6 +2,8 @@ package no.ssb.lds.data.service;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.server.HttpHandler;
@@ -17,7 +19,7 @@ import no.ssb.lds.data.common.BinaryBackend;
 import no.ssb.lds.data.common.Configuration;
 import no.ssb.lds.data.common.converter.FormatConverter;
 import no.ssb.lds.data.common.converter.csv.CsvConverter;
-import no.ssb.lds.data.common.converter.csv.JsonConverter;
+import no.ssb.lds.data.common.converter.json.JsonConverter;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import no.ssb.lds.data.service.handlers.GetDataHandler;
 import no.ssb.lds.data.service.handlers.ListVersionsHandler;
@@ -27,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +42,6 @@ public class Server {
 
     public static void main(String[] args) throws IOException {
 
-        // TODO: Fix number parsing.
         Configuration configuration = getConfiguration();
 
         logger.info("Initializing lds client");
@@ -48,8 +50,20 @@ public class Server {
                 configuration.getLdsServer().toString() + configuration.getGraphqlPath()
         );
 
+        // TODO: Use SPI.
         logger.info("Initializing google cloud storage backend");
+
         BinaryBackend backend = new GoogleCloudStorageBackend(configuration);
+
+        Configuration.Cache cacheConfiguration = configuration.getCache();
+        if (cacheConfiguration.getSpec() != null) {
+            Caffeine<Object, Object> cache = Caffeine.from(cacheConfiguration.getSpec());
+            logger.info("Setting up in memory cache: {}", cache);
+            backend = new CachedBackend(
+                    backend, cache, cacheConfiguration.getBlockSize(),
+                    ByteBuffer::allocateDirect
+            );
+        }
 
         // Supported converters.
         logger.info("Initializing converters");
@@ -165,9 +179,17 @@ public class Server {
             mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
             Map<String, Object> objectMap = splitMap(new TreeMap<>(configuration.asMap()));
-            String stringConfiguration = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(objectMap);
-            logger.debug("Got configuration: \n" + stringConfiguration);
-            return mapper.readValue(stringConfiguration, Configuration.class);
+            ObjectWriter prettyPrinter = mapper.writerWithDefaultPrettyPrinter();
+            String stringConfiguration = prettyPrinter.writeValueAsString(objectMap);
+            Configuration readValue = mapper.readValue(stringConfiguration, Configuration.class);
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("Got configuration: \n" + stringConfiguration);
+            } else {
+                logger.info("Got configuration: \n" + prettyPrinter.writeValueAsString(readValue));
+            }
+
+            return readValue;
         } catch (Exception e) {
             throw new IOException("Configuration error: " + e.getMessage(), e);
         }

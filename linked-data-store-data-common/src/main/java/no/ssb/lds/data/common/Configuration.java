@@ -11,8 +11,17 @@ public class Configuration {
     private String dataPrefix;
     private GoogleCloud googleCloud;
     private Parquet parquet;
+    private Cache cache;
 
     public Configuration() {
+    }
+
+    public Cache getCache() {
+        return cache;
+    }
+
+    public void setCache(Cache cache) {
+        this.cache = cache;
     }
 
     public String getGraphqlPath() {
@@ -120,5 +129,27 @@ public class Configuration {
             this.pageSize = pageSize;
         }
 
+    }
+
+    public static class Cache {
+
+        private String spec;
+        private Integer blockSize;
+
+        public Integer getBlockSize() {
+            return blockSize;
+        }
+
+        public void setBlockSize(Integer blockSize) {
+            this.blockSize = blockSize;
+        }
+
+        public String getSpec() {
+            return spec;
+        }
+
+        public void setSpec(String spec) {
+            this.spec = spec;
+        }
     }
 }
