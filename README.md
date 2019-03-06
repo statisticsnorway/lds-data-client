@@ -1,4 +1,3 @@
-# linked-data-store-data
-Linked Data Store (LDS) data module
+# Linked Data Store (LDS) data module
 
 Proof of Concept module for reading and writing data to underlying distributed datastore.
