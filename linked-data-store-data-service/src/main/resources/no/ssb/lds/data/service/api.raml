@@ -1,12 +1,17 @@
 #%RAML 1.0
 title: LDS data API
+description: |
+  TODO
+
 version: v1
 mediaType: application/json
 baseUri: http://localhost:8080
 protocols: [ HTTPS ]
 /upload:
   get:
-    description: Returns a list of uploads.
+    description: |
+      Returns the list of uploads currently active, that is, started via async
+      POST, uploading via sync POST or POST to the upload handle.
     responses:
       200:
         body:
@@ -17,14 +22,21 @@ protocols: [ HTTPS ]
         uploadId:
           type: string
     post:
+      description: Upload data.
+      headers:
+        Content-Type:
       body:
         application/avro+binary:
         application/parquet+binary:
         application/vnd.ms-excel:
         text/csv:
       responses:
-        200:
+        201:
+          headers:
+            Location:
+              description: The location of the newly created version.
     get:
+      description: Gets the status of the upload.
       responses:
         200:
           body:
@@ -33,12 +45,12 @@ protocols: [ HTTPS ]
     delete:
       description: Cancel an upload.
       responses:
-        200:
-
+        204:
 /data/{datasetId}:
   uriParameters:
       datasetId:
         type: string
+        description: The dataset UUID
   get:
     description: List all the versions for a given dataset.
     responses:
@@ -47,21 +59,42 @@ protocols: [ HTTPS ]
           application/no.ssb.lds.data.versions+json:
           application/json:
   /upload:
-    description: Upload the data. TODO: Async switch.
-
+    description: Upload the data. TODO Async switch.
+    post:
+      queryParameters:
+        async:
+          type: boolean
+          description: |
+            If set, the server will respond with 202 and a location where to
+            start sending the data.
   /{versionId}:
+    uriParameters:
+      versionId:
+        type: string
+        description: A ULID, represented as a UUID string.
     description: The data for this dataset and data version.
     get:
+      queryParameters:
+        next: integer
+        after:
+          type: string
+        last: integer
+        before:
+          type: string
       headers:
-        Accept:
-          default: text/csv
+        Content-Type:
       responses:
         200:
+          headers:
+            Link:
+              
           body:
             application/avro+binary:
             application/parquet+binary:
             application/vnd.ms-excel:
             text/csv:
+        415:
+          description: The server did not support the content type.
   /latest:
     get:
       description: Redirect to the latest version of the dataset.
