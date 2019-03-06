@@ -1,4 +1,4 @@
-package no.ssb.lds.data.common.converter.csv;
+package no.ssb.lds.data.common.converter.json;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
