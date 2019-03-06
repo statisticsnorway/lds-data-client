@@ -115,7 +115,11 @@ public abstract class AbstractFormatConverter implements FormatConverter {
         OutputStreamCounter countedOutput = new OutputStreamCounter(output, status);
         Schema schema = getSchema(dataset);
 
-        Filter filter = FilterCompat.get(PagedRecordFilter.page(cursor.getAfter() - 1, cursor.getNext()));
+        // Convert to pos + size
+        long start = Math.max(cursor.getAfter() + 1, 0);
+        int size = cursor.getNext() + 1;
+
+        Filter filter = FilterCompat.get(PagedRecordFilter.page(start, size));
 
         // Back pressured.
         Flowable<GenericRecord> groups = Flowable.generate(() -> {
@@ -134,7 +138,7 @@ public abstract class AbstractFormatConverter implements FormatConverter {
         }, reader -> {
             reader.close();
         });
-        Completable completable = decode(groups, countedOutput, schema);
+        Completable completable = decode(groups.take(cursor.getNext()), countedOutput, schema);
         status.setCompletable(completable);
         return status;
     }
