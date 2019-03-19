@@ -7,7 +7,7 @@ import java.nio.channels.ReadableByteChannel;
 /**
  * A simple client API to upload GSIM Dataset data.
  */
-public interface    Client {
+public interface Client {
 
     GSIMDataset getDataset(String id);
 
