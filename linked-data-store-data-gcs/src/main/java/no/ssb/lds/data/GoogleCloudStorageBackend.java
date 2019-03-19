@@ -74,7 +74,7 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
             long pos = 0;
 
             @Override
-            public int read(ByteBuffer dst) throws IOException {
+            public int read(ByteBuffer dst) {
                 throw new UnsupportedOperationException("not readable");
             }
 
@@ -86,22 +86,22 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
             }
 
             @Override
-            public long position() throws IOException {
+            public long position() {
                 return pos;
             }
 
             @Override
-            public SeekableByteChannel position(long newPosition) throws IOException {
+            public SeekableByteChannel position(long newPosition) {
                 throw new UnsupportedOperationException("not seekable");
             }
 
             @Override
-            public long size() throws IOException {
+            public long size() {
                 return position();
             }
 
             @Override
-            public SeekableByteChannel truncate(long size) throws IOException {
+            public SeekableByteChannel truncate(long size) {
                 throw new UnsupportedOperationException("truncate not supported");
             }
 

@@ -64,28 +64,28 @@ public class SeekableReadChannel implements java.nio.channels.SeekableByteChanne
     }
 
     @Override
-    public int write(ByteBuffer src) throws IOException {
+    public int write(ByteBuffer src) {
         throw new NonWritableChannelException();
     }
 
     @Override
-    public long position() throws IOException {
+    public long position() {
         return pos;
     }
 
     @Override
-    public java.nio.channels.SeekableByteChannel position(long newPosition) throws IOException {
+    public java.nio.channels.SeekableByteChannel position(long newPosition) {
         pos = newPosition;
         return this;
     }
 
     @Override
-    public long size() throws IOException {
+    public long size() {
         return size;
     }
 
     @Override
-    public java.nio.channels.SeekableByteChannel truncate(long size) throws IOException {
+    public java.nio.channels.SeekableByteChannel truncate(long size) {
         throw new NonWritableChannelException();
     }
 
@@ -95,7 +95,7 @@ public class SeekableReadChannel implements java.nio.channels.SeekableByteChanne
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         delegate.close();
     }
 }
