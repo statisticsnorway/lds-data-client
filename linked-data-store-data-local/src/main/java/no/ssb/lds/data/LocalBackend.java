@@ -1,7 +1,7 @@
 package no.ssb.lds.data;
 
 import io.reactivex.Flowable;
-import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.client.BinaryBackend;
 
 import java.io.File;
 import java.io.FileInputStream;

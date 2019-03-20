@@ -9,7 +9,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import io.reactivex.Flowable;
-import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.client.BinaryBackend;
 import no.ssb.lds.data.common.Configuration;
 
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package no.ssb.lds.data.common;
+package no.ssb.lds.data.client;
 
 import io.reactivex.Flowable;
 

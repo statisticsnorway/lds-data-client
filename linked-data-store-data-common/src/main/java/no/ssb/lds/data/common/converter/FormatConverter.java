@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Convert the data.
  */
+@Deprecated
 public interface FormatConverter {
 
     /**

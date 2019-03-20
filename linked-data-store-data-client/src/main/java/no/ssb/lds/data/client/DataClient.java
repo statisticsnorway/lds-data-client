@@ -2,12 +2,10 @@ package no.ssb.lds.data.client;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
-import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.client.converters.FormatConverter;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.parquet.hadoop.ParquetReader;
-import org.apache.parquet.hadoop.ParquetWriter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,6 +24,7 @@ import java.util.Objects;
  */
 public class DataClient {
 
+    // TODO: Replace with builder.
     protected final Configuration configuration;
 
     public DataClient(Configuration configuration) {
@@ -84,11 +83,17 @@ public class DataClient {
      * @return a completable that completes once the data is saved.
      */
     public Completable writeData(String dataId, Schema schema, Flowable<GenericRecord> records, String token) {
-        BinaryBackend backend = configuration.getBackend();
-        ParquetProvider provider = configuration.getParquetProvider();
-        SeekableByteChannel writableChannel = backend.write(dataId);
-        ParquetWriter<GenericRecord> parquetWriter = provider.getWriter(writableChannel, schema);
-        return records.doOnNext(record -> parquetWriter.write(record)).ignoreElements();
+        return Completable.using(() -> {
+            BinaryBackend backend = configuration.getBackend();
+            ParquetProvider provider = configuration.getParquetProvider();
+            SeekableByteChannel writableChannel = backend.write(dataId);
+            return provider.getWriter(writableChannel, schema);
+        }, parquetWriter -> {
+            return records.doOnNext(record -> parquetWriter.write(record)).ignoreElements();
+        }, parquetWriter -> {
+            parquetWriter.close();
+        });
+
     }
 
     /**
@@ -100,17 +105,21 @@ public class DataClient {
      * @return a {@link Flowable} of records.
      */
     public Flowable<GenericRecord> readData(String dataId, Schema schema, String token) {
-        BinaryBackend backend = configuration.getBackend();
-        ParquetProvider provider = configuration.getParquetProvider();
-        SeekableByteChannel readableChannel = backend.read(dataId);
-        ParquetReader<GenericRecord> parquetReader = provider.getReader(readableChannel, schema);
-        return Flowable.generate(emitter -> {
+        // TODO: Do something with token.
+        return Flowable.generate(() -> {
+            BinaryBackend backend = configuration.getBackend();
+            ParquetProvider provider = configuration.getParquetProvider();
+            SeekableByteChannel readableChannel = backend.read(dataId);
+            return provider.getReader(readableChannel, schema, null);
+        }, (parquetReader, emitter) -> {
             GenericRecord read = parquetReader.read();
             if (read == null) {
                 emitter.onComplete();
             } else {
                 emitter.onNext(read);
             }
+        }, parquetReader -> {
+            parquetReader.close();
         });
     }
 

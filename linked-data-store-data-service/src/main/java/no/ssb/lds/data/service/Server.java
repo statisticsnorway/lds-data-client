@@ -15,7 +15,7 @@ import no.ssb.config.DynamicConfiguration;
 import no.ssb.config.StoreBasedDynamicConfiguration;
 import no.ssb.lds.data.GoogleCloudStorageBackend;
 import no.ssb.lds.data.client.ClientV1;
-import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.client.BinaryBackend;
 import no.ssb.lds.data.common.Configuration;
 import no.ssb.lds.data.common.converter.FormatConverter;
 import no.ssb.lds.data.common.converter.csv.CsvConverter;

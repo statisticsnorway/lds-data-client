@@ -4,7 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import io.reactivex.Flowable;
-import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.client.BinaryBackend;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

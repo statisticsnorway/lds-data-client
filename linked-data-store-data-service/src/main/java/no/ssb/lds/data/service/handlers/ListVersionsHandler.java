@@ -11,11 +11,10 @@ import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.Headers;
-import io.undertow.util.HttpString;
 import io.undertow.util.Methods;
 import io.undertow.util.PathTemplateMatch;
 import io.undertow.util.StatusCodes;
-import no.ssb.lds.data.common.BinaryBackend;
+import no.ssb.lds.data.client.BinaryBackend;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -29,8 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-
-import static no.ssb.lds.data.service.handlers.GetDataHandler.DATA_ID;
 
 /**
  * Lists the versions of a data.

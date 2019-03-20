@@ -1,4 +1,4 @@
-package no.ssb.lds.data.client;
+package no.ssb.lds.data.client.converters;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;

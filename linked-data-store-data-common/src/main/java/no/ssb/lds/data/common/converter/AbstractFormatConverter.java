@@ -26,6 +26,7 @@ import static org.apache.parquet.filter2.compat.FilterCompat.*;
 /**
  * Converts from a mediatype to parquet and back;
  */
+@Deprecated
 public abstract class AbstractFormatConverter implements FormatConverter {
 
     private final ParquetProvider provider;

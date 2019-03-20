@@ -1,9 +1,7 @@
-package no.ssb.lds.data.common.converter.csv;
+package no.ssb.lds.data.client.converters;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
-import no.ssb.lds.data.common.converter.AbstractFormatConverter;
-import no.ssb.lds.data.common.parquet.ParquetProvider;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -23,13 +21,56 @@ import java.util.List;
 
 import static io.reactivex.Flowable.fromIterable;
 
-@Deprecated
-public class CsvConverter extends AbstractFormatConverter {
+public class CsvConverter implements FormatConverter {
 
     private static final String MEDIA_TYPE = "text/csv";
 
-    public CsvConverter(ParquetProvider provider) {
-        super(provider);
+    @Override
+    public boolean doesSupport(String mediaType) {
+        return MEDIA_TYPE.equals(mediaType);
+    }
+
+    @Override
+    public String getMediaType() {
+        return MEDIA_TYPE;
+    }
+
+    @Override
+    public Flowable<GenericRecord> read(InputStream input, String mimeType, Schema schema) {
+        // TODO: Detect charset
+        // TODO: Support Hierarchical dataset.
+        // TODO: Fail if no headers.
+        return Flowable.defer(() -> {
+            CSVParser records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(new InputStreamReader(input));
+            return fromIterable(records).doFinally(records::close).map(record -> encodeRecord(record, schema));
+        });
+    }
+
+    @Override
+    public Completable write(Flowable<GenericRecord> records, OutputStream output, String mimeType, Schema schema) {
+        // TODO: Detect charset
+        // TODO: Support Hierarchical dataset.
+        // TODO: Fail if no headers.
+        List<String> names = new ArrayList<>();
+        for (Schema.Field field : schema.getFields()) {
+            names.add(field.name());
+        }
+        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(output));
+        return Completable.defer(() -> {
+            try {
+                CSVPrinter csvPrinter = CSVFormat.RFC4180.withHeader(names.toArray(new String[]{}))
+                        .print(out);
+                return records.doOnNext(genericRecord -> {
+                    List<Object> values = new ArrayList<>();
+                    for (String name : names) {
+                        values.add(genericRecord.get(name));
+                    }
+                    csvPrinter.printRecord(values);
+                }).doFinally(() -> out.close()).ignoreElements();
+            } catch (IOException e) {
+                return Completable.error(e);
+            }
+        });
     }
 
     private GenericRecord encodeRecord(CSVRecord record, Schema schema) {
@@ -56,52 +97,5 @@ public class CsvConverter extends AbstractFormatConverter {
             }
         }
         return recordBuilder.build();
-    }
-
-    @Override
-    public Flowable<GenericRecord> encode(InputStream input, Schema schema) {
-        // TODO: Detect charset
-        // TODO: Support Hierarchical dataset.
-        // TODO: Fail if no headers.
-        return Flowable.defer(() -> {
-            CSVParser records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(new InputStreamReader(input));
-            return fromIterable(records).doFinally(records::close).map(record -> encodeRecord(record, schema));
-        });
-    }
-
-    @Override
-    public Completable decode(Flowable<GenericRecord> records, OutputStream output, Schema schema) {
-        // TODO: Detect charset
-        // TODO: Support Hierarchical dataset.
-        // TODO: Fail if no headers.
-        List<String> names = new ArrayList<>();
-        for (Schema.Field field : schema.getFields()) {
-            names.add(field.name());
-        }
-        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(output));
-        return Completable.defer(() -> {
-            try {
-                CSVPrinter csvPrinter = CSVFormat.RFC4180.withHeader(names.toArray(new String[]{}))
-                        .print(out);
-                return records.doOnNext(genericRecord -> {
-                    List<Object> values = new ArrayList<>();
-                    for (String name : names) {
-                        values.add(genericRecord.get(name));
-                    }
-                    csvPrinter.printRecord(values);
-                }).doFinally(() -> out.flush()).ignoreElements();
-            } catch (IOException e) {
-                return Completable.error(e);
-            }
-        });
-    }
-
-    public boolean doesSupport(String mediaType) {
-        return MEDIA_TYPE.equals(mediaType);
-    }
-
-    @Override
-    public String getMediaType() {
-        return MEDIA_TYPE;
     }
 }

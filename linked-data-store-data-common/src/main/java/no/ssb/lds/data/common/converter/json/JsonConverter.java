@@ -24,6 +24,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.function.Function;
 
+@Deprecated
 public class JsonConverter extends AbstractFormatConverter {
 
     public static final int BUFFER_SIZE = 1024;
@@ -146,6 +147,7 @@ public class JsonConverter extends AbstractFormatConverter {
 
     private Function<JsonNode, Object> getConverter(Schema.Field field) {
         Schema.Type type = field.schema().getType();
+        field.schema().getLogicalType();
         Function<JsonNode, Object> converter;
         switch (type) {
             case STRING:
