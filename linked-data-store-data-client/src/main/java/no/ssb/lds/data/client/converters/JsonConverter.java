@@ -3,7 +3,6 @@ package no.ssb.lds.data.client.converters;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.reactivex.Completable;
@@ -15,9 +14,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -59,6 +56,9 @@ public class JsonConverter implements FormatConverter {
             case STRING:
                 converter = JsonNode::asText;
                 break;
+            case INT:
+                converter = node -> (int) node.asLong();
+                break;
             case LONG:
                 converter = JsonNode::asLong;
                 break;
@@ -66,6 +66,9 @@ public class JsonConverter implements FormatConverter {
                 converter = JsonNode::asBoolean;
                 break;
             case FLOAT:
+                converter = n -> (float) n.asDouble();
+                break;
+            case DOUBLE:
                 converter = JsonNode::asDouble;
                 break;
             default:
@@ -84,16 +87,16 @@ public class JsonConverter implements FormatConverter {
             parser.nextValue();
             return mapper.readValues(parser, ObjectNode.class);
         }, (it, emitter) -> {
-                try {
-                    if (it.hasNext()) {
-                        emitter.onNext(it.next());
-                    } else {
-                        emitter.onComplete();
-                    }
-                } catch (Exception e) {
-                    emitter.onError(e);
+            try {
+                if (it.hasNext()) {
+                    emitter.onNext(it.next());
+                } else {
+                    emitter.onComplete();
                 }
-            }, it -> it.close());
+            } catch (Exception e) {
+                emitter.onError(e);
+            }
+        }, it -> it.close());
 
         //List<Deque<JsonNode>> buffers = new ArrayList<>(fields.size());
         //for (Schema.Field field : fields) {

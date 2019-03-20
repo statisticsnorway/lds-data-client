@@ -107,7 +107,5 @@ class CsvConverterTest {
                 "string,int,boolean,float,long,double\r\n" +
                 "foo,123,true,123.123,123,123.123\r\n"
         );
-
-
     }
 }
