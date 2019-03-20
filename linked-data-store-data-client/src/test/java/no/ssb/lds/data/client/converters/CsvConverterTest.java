@@ -2,10 +2,14 @@ package no.ssb.lds.data.client.converters;
 
 import io.reactivex.Flowable;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
@@ -47,6 +51,63 @@ class CsvConverterTest {
                 converter.getMediaType(),
                 dimensionalSchema
         ).blockingAwait();
+
+    }
+
+    @Test
+    void testRead() {
+
+        InputStream csvStream = new ByteArrayInputStream((
+                "string,int,boolean,float,long,double\r\n" +
+                        "foo,123,true,123.123,123,123.123"
+        ).getBytes());
+
+        List<GenericRecord> records = converter.read(csvStream, converter.getMediaType(), dimensionalSchema).toList()
+                .blockingGet();
+
+        assertThat(records).containsExactly(
+                new GenericRecordBuilder(dimensionalSchema)
+                        .set("string", "foo")
+                        .set("int", 123)
+                        .set("boolean", true)
+                        .set("float", 123.123F)
+                        .set("long", 123L)
+                        .set("double", 123.123D)
+                        .build()
+        );
+    }
+
+    @Test
+    void testWrite() {
+
+        InputStream csvStream = new ByteArrayInputStream((
+                "string,int,boolean,float,long,double\r\n" +
+                        "foo,123,true,123.123,123,123.123"
+        ).getBytes());
+
+
+        GenericData.Record record = new GenericRecordBuilder(dimensionalSchema)
+                .set("string", "foo")
+                .set("int", 123)
+                .set("boolean", true)
+                .set("float", 123.123F)
+                .set("long", 123L)
+                .set("double", 123.123D)
+                .build();
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        converter.write(
+                Flowable.just(record),
+                output,
+                converter.getMediaType(), dimensionalSchema
+        ).blockingAwait();
+
+        assertThat(new String(output.toByteArray())).isEqualTo(
+                "string,int,boolean,float,long,double\r\n" +
+                "foo,123,true,123.123,123,123.123\r\n"
+        );
+
 
     }
 }

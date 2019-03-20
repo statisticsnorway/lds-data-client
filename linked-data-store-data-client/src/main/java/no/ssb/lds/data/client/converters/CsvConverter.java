@@ -83,6 +83,9 @@ public class CsvConverter implements FormatConverter {
                 case STRING:
                     recordBuilder.set(name, value);
                     break;
+                case INT:
+                    recordBuilder.set(name, Integer.parseInt(value));
+                    break;
                 case LONG:
                     recordBuilder.set(name, Long.parseLong(value));
                     break;
@@ -90,6 +93,9 @@ public class CsvConverter implements FormatConverter {
                     recordBuilder.set(name, Boolean.parseBoolean(value));
                     break;
                 case FLOAT:
+                    recordBuilder.set(name, Float.parseFloat(value));
+                    break;
+                case DOUBLE:
                     recordBuilder.set(name, Double.parseDouble(value));
                     break;
                 default:
