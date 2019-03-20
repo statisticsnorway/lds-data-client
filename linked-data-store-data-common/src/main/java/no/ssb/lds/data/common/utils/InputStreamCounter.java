@@ -1,38 +1,37 @@
 package no.ssb.lds.data.common.utils;
 
-import no.ssb.lds.data.common.converter.FormatConverter;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class InputStreamCounter extends InputStream {
 
     private final InputStream delegate;
-    private final FormatConverter.Status status;
+    private final AtomicLong counter;
 
-    public InputStreamCounter(InputStream delegate, FormatConverter.Status status) {
+    public InputStreamCounter(InputStream delegate, AtomicLong counter) {
         this.delegate = delegate;
-        this.status = status;
+        this.counter = counter;
     }
 
     @Override
     public int read() throws IOException {
-        this.status.addRead(1);
+        this.counter.incrementAndGet();
         return delegate.read();
     }
 
     @Override
     public int read(byte[] b) throws IOException {
         int read = delegate.read(b);
-        status.addRead(read);
+        counter.addAndGet(read);
         return read;
     }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
         int read = delegate.read(b, off, len);
-        status.addRead(read);
+        counter.addAndGet(read);
         return read;
     }
 

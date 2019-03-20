@@ -169,4 +169,29 @@ public class CachedBackend implements BinaryBackend {
             delegate.close();
         }
     }
+
+    public static class Configuration {
+
+        private String spec;
+        private Integer blockSize;
+
+        public Configuration() {
+        }
+
+        public Integer getBlockSize() {
+            return blockSize;
+        }
+
+        public void setBlockSize(Integer blockSize) {
+            this.blockSize = blockSize;
+        }
+
+        public String getSpec() {
+            return spec;
+        }
+
+        public void setSpec(String spec) {
+            this.spec = spec;
+        }
+    }
 }

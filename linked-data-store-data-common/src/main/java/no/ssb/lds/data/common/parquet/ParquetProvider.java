@@ -1,6 +1,5 @@
 package no.ssb.lds.data.common.parquet;
 
-import no.ssb.lds.data.common.Configuration;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
@@ -81,8 +80,8 @@ public class ParquetProvider {
             }
         }).withSchema(schema)
                 .withCompressionCodec(CompressionCodecName.SNAPPY)
-                .withPageSize(configuration.getParquet().getPageSize())
-                .withRowGroupSize(configuration.getParquet().getRowGroupSize())
+                .withPageSize(configuration.getPageSize())
+                .withRowGroupSize(configuration.getRowGroupSize())
                 .build();
         return writer;
     }
@@ -114,6 +113,32 @@ public class ParquetProvider {
                 }
             };
         }
+    }
+
+    public static class Configuration {
+
+        private Integer rowGroupSize;
+        private Integer pageSize;
+
+        public Configuration() {
+        }
+
+        public Integer getRowGroupSize() {
+            return rowGroupSize;
+        }
+
+        public void setRowGroupSize(Integer rowGroupSize) {
+            this.rowGroupSize = rowGroupSize;
+        }
+
+        public Integer getPageSize() {
+            return pageSize;
+        }
+
+        public void setPageSize(Integer pageSize) {
+            this.pageSize = pageSize;
+        }
+
     }
 
 }

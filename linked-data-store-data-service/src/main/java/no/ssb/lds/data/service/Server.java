@@ -13,13 +13,11 @@ import io.undertow.server.handlers.PathTemplateHandler;
 import io.undertow.util.Methods;
 import no.ssb.config.DynamicConfiguration;
 import no.ssb.config.StoreBasedDynamicConfiguration;
+import no.ssb.gsim.client.GsimClient;
 import no.ssb.lds.data.GoogleCloudStorageBackend;
-import no.ssb.lds.data.client.ClientV1;
 import no.ssb.lds.data.client.BinaryBackend;
-import no.ssb.lds.data.common.Configuration;
-import no.ssb.lds.data.common.converter.FormatConverter;
-import no.ssb.lds.data.common.converter.csv.CsvConverter;
-import no.ssb.lds.data.common.converter.json.JsonConverter;
+import no.ssb.lds.data.client.DataClient;
+import no.ssb.lds.data.client.converters.FormatConverter;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import no.ssb.lds.data.service.handlers.GetDataHandler;
 import no.ssb.lds.data.service.handlers.ListVersionsHandler;
@@ -44,48 +42,58 @@ public class Server {
 
         Configuration configuration = getConfiguration();
 
-        logger.info("Initializing lds client");
-        // Fetch the datasets from LDS.
-        ClientV1 clientV1 = new ClientV1(
-                configuration.getLdsServer().toString() + configuration.getGraphqlPath()
-        );
+        BinaryBackend backend;
+        if (configuration.getGoogleCloud() != null) {
+            logger.info("Initializing google cloud storage backend");
+            backend = new GoogleCloudStorageBackend(configuration.getGoogleCloud());
+        } else {
+            throw new IllegalArgumentException("missing backend");
+        }
 
-        // TODO: Use SPI.
-        logger.info("Initializing google cloud storage backend");
-
-        BinaryBackend backend = new GoogleCloudStorageBackend(configuration);
-
-        Configuration.Cache cacheConfiguration = configuration.getCache();
-        if (cacheConfiguration.getSpec() != null) {
-            Caffeine<Object, Object> cache = Caffeine.from(cacheConfiguration.getSpec());
+        if (configuration.getCache() != null) {
+            Caffeine<Object, Object> cache = Caffeine.from(configuration.getCache().getSpec());
             logger.info("Setting up in memory cache: {}", cache);
             backend = new CachedBackend(
-                    backend, cache, cacheConfiguration.getBlockSize(),
+                    backend, cache, configuration.getCache().getBlockSize(),
                     ByteBuffer::allocateDirect
             );
         }
 
-        // Supported converters.
-        logger.info("Initializing converters");
-        ParquetProvider parquetProvider = new ParquetProvider(configuration);
+        ObjectMapper mapper = new ObjectMapper();
+
+        DataClient.Builder dataClientBuilder = DataClient.builder().withBinaryBackend(backend);
+        logger.info("Initializing data client");
         List<FormatConverter> converters = List.of(
-                new CsvConverter(parquetProvider),
-                new JsonConverter(parquetProvider, new ObjectMapper())
+                new no.ssb.lds.data.client.converters.JsonConverter(mapper),
+                new no.ssb.lds.data.client.converters.CsvConverter()
         );
+
         for (FormatConverter converter : converters) {
-            logger.info("Converter {}", converter);
+            logger.info(" - converter {}", converter);
+            dataClientBuilder.withFormatConverter(converter);
         }
+
+        ParquetProvider parquetProvider = new ParquetProvider(configuration.getParquet());
+        dataClientBuilder.withParquetProvider(parquetProvider);
+        dataClientBuilder.withConfiguration(configuration.getData());
+
+        logger.info("Initializing GSIM client");
+        DataClient dataClient = dataClientBuilder.build();
+        GsimClient gsimClient = GsimClient.builder()
+                .withDataClient(dataClient)
+                .withConfiguration(configuration.getGsim())
+                .build();
 
         PathTemplateHandler pathTemplate = Handlers.pathTemplate(true);
 
         // Handles get requests.
         pathTemplate.add(GetDataHandler.PATH, new AllowedMethodsHandler(
-                new GetDataHandler(backend, clientV1, converters),
+                new GetDataHandler(backend, gsimClient, dataClient),
                 Methods.GET, Methods.HEAD, Methods.OPTIONS
         ));
 
         // Handles upload and conversion.
-        UploadHandler uploadHandler = new UploadHandler(converters, backend);
+        UploadHandler uploadHandler = new UploadHandler(backend, dataClient);
         pathTemplate.add(UploadHandler.PATH, new AllowedMethodsHandler(
                 uploadHandler,
                 Methods.DELETE, Methods.GET, Methods.POST, Methods.OPTIONS
@@ -99,7 +107,7 @@ public class Server {
 
         // Creates uploads.
         pathTemplate.add(PostDataHandler.PATH, new AllowedMethodsHandler(
-                new PostDataHandler(uploadHandler, clientV1),
+                new PostDataHandler(uploadHandler, gsimClient, dataClient),
                 Methods.GET, Methods.POST, Methods.OPTIONS
         ));
 

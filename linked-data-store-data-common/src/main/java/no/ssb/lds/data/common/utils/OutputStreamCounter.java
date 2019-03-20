@@ -1,37 +1,37 @@
 package no.ssb.lds.data.common.utils;
 
-import no.ssb.lds.data.common.converter.FormatConverter;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class OutputStreamCounter extends OutputStream {
 
     private final OutputStream delegate;
-    private final FormatConverter.Status status;
+    private final AtomicLong counter;
 
 
-    public OutputStreamCounter(OutputStream delegate, FormatConverter.Status status) {
+    public OutputStreamCounter(OutputStream delegate, AtomicLong counter) {
         this.delegate = delegate;
-        this.status = status;
+        this.counter = counter;
     }
 
     @Override
     public void write(int b) throws IOException {
         delegate.write(b);
-        status.addWritten(1);
+        counter.incrementAndGet();
     }
 
     @Override
     public void write(byte[] b) throws IOException {
         delegate.write(b);
-        status.addWritten(b.length);
+        counter.addAndGet(b.length);
     }
 
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
         delegate.write(b, off, len);
-        status.addWritten(len);
+        counter.addAndGet(len);
     }
 
     @Override

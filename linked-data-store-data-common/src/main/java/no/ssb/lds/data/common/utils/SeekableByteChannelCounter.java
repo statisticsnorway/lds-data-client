@@ -3,24 +3,23 @@ package no.ssb.lds.data.common.utils;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
-
-import static no.ssb.lds.data.common.converter.FormatConverter.Status;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SeekableByteChannelCounter implements SeekableByteChannel {
 
     private final SeekableByteChannel delegate;
-    private final Status status;
+    private final AtomicLong counter;
 
-    public SeekableByteChannelCounter(SeekableByteChannel delegate, Status status) {
+    public SeekableByteChannelCounter(SeekableByteChannel delegate, AtomicLong counter) {
         this.delegate = delegate;
-        this.status = status;
+        this.counter = counter;
     }
 
     @Override
     public int read(ByteBuffer dst) throws IOException {
         int read = delegate.read(dst);
         if (read > -1) {
-            status.addRead(read);
+            counter.addAndGet(read);
         }
         return read;
     }
@@ -28,7 +27,7 @@ public class SeekableByteChannelCounter implements SeekableByteChannel {
     @Override
     public int write(ByteBuffer src) throws IOException {
         int written = delegate.write(src);
-        status.addWritten(written);
+        counter.addAndGet(written);
         return written;
     }
 

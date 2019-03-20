@@ -11,24 +11,22 @@ import io.reactivex.schedulers.Schedulers;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.ResponseCodeHandler;
+import io.undertow.util.HeaderValues;
 import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
 import io.undertow.util.Methods;
 import io.undertow.util.PathTemplateMatch;
 import io.undertow.util.StatusCodes;
 import no.ssb.lds.data.client.BinaryBackend;
-import no.ssb.lds.data.common.converter.FormatConverter;
-import no.ssb.lds.data.common.model.GSIMDataset;
+import no.ssb.lds.data.client.DataClient;
+import no.ssb.lds.data.client.UnsupportedMediaTypeException;
+import org.apache.avro.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.channels.SeekableByteChannel;
 import java.time.Instant;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -49,8 +47,8 @@ public class UploadHandler implements HttpHandler {
     private final ULID ulid = new ULID();
     private final ConcurrentMap<UUID, Handle> uploads;
 
-    private final List<FormatConverter> converters;
     private final BinaryBackend backend;
+    private final DataClient dataClient;
 
     private final Scheduler conversionScheduler = Schedulers.from(
             Executors.newCachedThreadPool(),
@@ -58,11 +56,10 @@ public class UploadHandler implements HttpHandler {
     );
 
     public UploadHandler(
-            List<FormatConverter> converters,
-            BinaryBackend backend
-    ) {
+            BinaryBackend backend,
+            DataClient client) {
+        this.dataClient = client;
         this.uploads = new ConcurrentHashMap<>();
-        this.converters = converters;
         this.backend = backend;
     }
 
@@ -92,8 +89,8 @@ public class UploadHandler implements HttpHandler {
      * This is to avoid upload contention. The original ID is saved in the
      * parquet file and upload status.
      */
-    private UUID getDataUUID(GSIMDataset dataset) {
-        String originalId = dataset.getId();
+    private UUID getDataUUID(String dataId) {
+        String originalId = dataId;
         try {
             return UUID.fromString(originalId);
         } catch (IllegalArgumentException iae) {
@@ -138,115 +135,90 @@ public class UploadHandler implements HttpHandler {
         mapper.writeValue(exchange.getOutputStream(), new StatusRepresentation(handle));
     }
 
-    private void handleUpload(HttpServerExchange exchange, UUID uploadId) throws IOException {
+    private void handleUpload(HttpServerExchange exchange, UUID uploadId) throws IOException, UnsupportedMediaTypeException {
         if (exchange.isInIoThread()) {
             exchange.dispatch(this);
             return;
         }
 
-        // Find the converter base on the content type.
-        Optional<FormatConverter> converter = findFormatConverter(exchange);
-        if (converter.isPresent()) {
+        Handle handle = uploads.get(uploadId);
+        String mediaType = handle.getMediaType();
 
-            FormatConverter formatConverter = converter.get();
-            String mediaType = formatConverter.getMediaType();
+        // Check media type.
+        HeaderValues contentTypes = exchange.getRequestHeaders().get(Headers.CONTENT_TYPE);
+        if (!contentTypes.contains(mediaType)) {
+            exchange.setStatusCode(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+            return;
+        }
 
-            Handle handle = uploads.get(uploadId);
-            try (SeekableByteChannel channel = backend.write(handle.getPath())) {
+        try {
+            exchange.startBlocking();
+            Completable completable = dataClient.convertAndWrite(handle.getPath(), handle.getSchema(),
+                    exchange.getInputStream(), mediaType, "");
+            completable.doOnDispose(() -> LOG.info("Cancelled."))
+                    .doOnSubscribe(disposable -> {
+                        LOG.info("Subscribed.");
+                        handle.setDisposable(disposable);
+                    })
+                    .subscribeOn(conversionScheduler)
+                    .doFinally(() -> {
+                        LOG.info("Done.");
+                    }).blockingAwait();
 
-                exchange.startBlocking();
-                FormatConverter.Status status = formatConverter.write(
-                        exchange.getInputStream(),
-                        channel,
-                        mediaType,
-                        handle.getDataset()
-                );
-                handle.setStatus(status);
+            // TODO: Update GSIM object.
+            // client...
 
-                Completable.wrap(status)
-                        .doOnDispose(() -> LOG.info("Cancelled."))
-                        .doOnSubscribe(disposable -> {
-                            LOG.info("Subscribed.");
-                            handle.setDisposable(disposable);
-                        })
-                        .subscribeOn(conversionScheduler)
-                        .doFinally(() -> {
-                            LOG.info("Done.");
-                        }).blockingAwait();
-
-                // TODO: Update GSIM object.
-                // client...
-
-                // Sends the location of the created resource.
-                exchange.setStatusCode(StatusCodes.CREATED);
-                exchange.getResponseHeaders().add(
-                        Headers.LOCATION,
-                        GetDataHandler.PATH
-                                .replace("{" + GetDataHandler.DATA_ID + "}", handle.getDataId())
-                                .replace("{" + GetDataHandler.VERSION_ID + "}", handle.getVersionId())
-                );
-            } finally {
-                uploads.remove(uploadId);
-            }
-
-        } else {
-            // TODO: Correct error header.
+            // Sends the location of the created resource.
+            exchange.setStatusCode(StatusCodes.CREATED);
+            exchange.getResponseHeaders().add(
+                    Headers.LOCATION,
+                    GetDataHandler.PATH
+                            .replace("{" + GetDataHandler.DATA_ID + "}", handle.getDataId())
+                            .replace("{" + GetDataHandler.VERSION_ID + "}", handle.getVersionId())
+            );
+        } finally {
+            uploads.remove(uploadId);
         }
     }
 
-    public UUID createUpload(GSIMDataset dataset) {
+    public UUID createUpload(String dataId, String mediaType, Schema schema) {
         UUID uploadId = UUID.randomUUID();
         Handle handle = new Handle(
-                dataset,
+                schema,
                 uploadId,
-                getDataUUID(dataset),
-                getVersionUUID(Instant.now())
+                getDataUUID(dataId),
+                getVersionUUID(Instant.now()),
+                mediaType
         );
         uploads.put(uploadId, handle);
         return uploadId;
     }
 
-    private Optional<FormatConverter> findFormatConverter(HttpServerExchange exchange) {
-        Iterator<String> mediaTypes = exchange.getRequestHeaders().get(Headers.CONTENT_TYPE).descendingIterator();
-        while (mediaTypes.hasNext()) {
-            String mediaType = mediaTypes.next();
-            for (FormatConverter converter : converters) {
-                if (converter.doesSupport(mediaType)) {
-                    return Optional.of(converter);
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
     public static class Handle {
 
-        private final GSIMDataset dataset;
         private final UUID versionId;
         private final UUID dataId;
         private final UUID uploadId;
-        private FormatConverter.Status status;
+        private final String mediaType;
+        private final Schema schema;
         private Disposable disposable;
 
-        public Handle(GSIMDataset dataset, UUID uploadId, UUID dataId, UUID versionId) {
-            this.dataset = dataset;
+        public Handle(Schema schema, UUID uploadId, UUID dataId, UUID versionId, String mediaType) {
+            this.schema = schema;
             this.versionId = versionId;
             this.dataId = dataId;
             this.uploadId = uploadId;
+            this.mediaType = mediaType;
         }
 
         @JsonIgnore
-        public GSIMDataset getDataset() {
-            return dataset;
+        public Schema getSchema() {
+            return schema;
         }
 
-        @JsonIgnore
-        public FormatConverter.Status getStatus() {
-            return status;
-        }
-
-        public void setStatus(FormatConverter.Status status) {
-            this.status = status;
+        @JsonProperty
+        public String getMediaType() {
+            return mediaType;
         }
 
         @JsonIgnore
@@ -256,11 +228,6 @@ public class UploadHandler implements HttpHandler {
 
         public void setDisposable(Disposable disposable) {
             this.disposable = disposable;
-        }
-
-        @JsonProperty
-        public String getDatasetId() {
-            return dataset.getId();
         }
 
         @JsonProperty
@@ -300,23 +267,13 @@ public class UploadHandler implements HttpHandler {
         }
 
         @JsonProperty
-        public long readBytes() {
-            return handle.getStatus().readBytes();
-        }
-
-        @JsonProperty
-        public long writtenBytes() {
-            return handle.getStatus().writtenBytes();
-        }
-
-        @JsonProperty
         public String getVersionId() {
             return handle.getVersionId();
         }
 
         @JsonProperty
         public String getDatasetId() {
-            return handle.getDatasetId();
+            return handle.getDataId();
         }
     }
 }

@@ -31,11 +31,6 @@
         </dependency>
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
-            <artifactId>linked-data-store-data-common</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>no.ssb.lds.data</groupId>
             <artifactId>linked-data-store-data-client</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
@@ -43,6 +38,12 @@
             <groupId>no.ssb.lds.data</groupId>
             <artifactId>linked-data-store-data-gcs</artifactId>
             <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>no.ssb.lds</groupId>
+            <artifactId>ssb-gsim-client</artifactId>
+            <version>1.0</version>
         </dependency>
     </dependencies>
 

@@ -37,8 +37,20 @@ public class DataClient {
         this.configuration = Objects.requireNonNull(builder.configuration);
     }
 
-    public static Builder newClient() {
+    public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Returns true if the data client has a converter that support the mediaType.
+     */
+    public boolean canConvert(String mediaType) {
+        for (FormatConverter converter : converters) {
+            if (converter.doesSupport(mediaType)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -52,7 +64,7 @@ public class DataClient {
      * @return a completable that completes once the data is saved.
      */
     public Completable convertAndWrite(String dataId, Schema schema, InputStream input, String mediaType,
-                                       String token) {
+                                       String token) throws UnsupportedMediaTypeException {
         for (FormatConverter converter : converters) {
             if (converter.doesSupport(mediaType)) {
                 Flowable<GenericRecord> records = converter.read(input, mediaType, schema);
@@ -73,14 +85,14 @@ public class DataClient {
      * @return a completable that completes once the data is read.
      */
     public Completable readAndConvert(String dataId, Schema schema, OutputStream outputStream,
-                                      String mediaType, String token) {
+                                      String mediaType, String token) throws UnsupportedMediaTypeException {
         for (FormatConverter converter : converters) {
             if (converter.doesSupport(mediaType)) {
                 Flowable<GenericRecord> records = readData(dataId, schema, token);
                 return converter.write(records, outputStream, mediaType, schema);
             }
         }
-        throw new IllegalArgumentException("unsupported type " + mediaType);
+        throw new UnsupportedMediaTypeException("unsupported type " + mediaType);
     }
 
     /**
@@ -130,6 +142,19 @@ public class DataClient {
     }
 
     public static class Configuration {
+
+        private String location;
+
+        public Configuration() {
+        }
+
+        public String getLocation() {
+            return location;
+        }
+
+        public void setLocation(String location) {
+            this.location = location;
+        }
     }
 
     public static class Builder {

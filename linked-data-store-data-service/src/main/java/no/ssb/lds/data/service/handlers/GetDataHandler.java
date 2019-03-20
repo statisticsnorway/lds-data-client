@@ -8,20 +8,20 @@ import io.undertow.util.Headers;
 import io.undertow.util.Methods;
 import io.undertow.util.PathTemplateMatch;
 import io.undertow.util.StatusCodes;
-import no.ssb.lds.data.client.ClientV1;
+import no.ssb.gsim.client.GsimClient;
 import no.ssb.lds.data.client.BinaryBackend;
-import no.ssb.lds.data.common.converter.FormatConverter;
-import no.ssb.lds.data.common.model.GSIMDataset;
+import no.ssb.lds.data.client.DataClient;
+import no.ssb.lds.data.client.UnsupportedMediaTypeException;
+import org.apache.avro.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.nio.channels.SeekableByteChannel;
+import java.io.OutputStream;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static no.ssb.lds.data.common.converter.FormatConverter.Cursor;
-import static no.ssb.lds.data.common.converter.FormatConverter.Status;
 
 public class GetDataHandler implements HttpHandler {
 
@@ -29,16 +29,16 @@ public class GetDataHandler implements HttpHandler {
     public static final String VERSION_ID = "versionId";
     public static final String PATH = "/data/{" + DATA_ID + "}/{" + VERSION_ID + "}";
     public static final String LATEST = "latest";
-
+    private static final Logger logger = LoggerFactory.getLogger(GetDataHandler.class);
     private final BinaryBackend backend;
-    private final ClientV1 client;
-    private final List<FormatConverter> converters;
+    private final DataClient dataClient;
+    private final GsimClient gsimClient;
 
 
-    public GetDataHandler(BinaryBackend backend, ClientV1 client, List<FormatConverter> converters) {
+    public GetDataHandler(BinaryBackend backend, GsimClient gsimClient, DataClient dataClient) {
         this.backend = backend;
-        this.client = client;
-        this.converters = converters;
+        this.gsimClient = gsimClient;
+        this.dataClient = dataClient;
     }
 
     private Cursor<Long> getCursor(HttpServerExchange exchange) {
@@ -63,11 +63,27 @@ public class GetDataHandler implements HttpHandler {
             return;
         }
 
+        // Check media type.
+        Iterator<String> mediaTypes = exchange.getRequestHeaders().get(Headers.ACCEPT).descendingIterator();
+        String mediaType = null;
+        while (mediaTypes.hasNext()) {
+            String nextMediaType = mediaTypes.next();
+            if (dataClient.canConvert(nextMediaType)) {
+                mediaType = nextMediaType;
+                break;
+            }
+        }
+        if (mediaType == null) {
+            exchange.setStatusCode(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+            return;
+        }
+
         // Extract path variables.
         Map<String, String> parameters = exchange.getAttachment(PathTemplateMatch.ATTACHMENT_KEY).getParameters();
         String dataId = parameters.get(DATA_ID);
         String versionId = parameters.get(VERSION_ID);
 
+        // Check if exists.
         String path;
         if (versionId.equals(LATEST)) {
             path = backend.list(dataId).blockingFirst();
@@ -79,25 +95,15 @@ public class GetDataHandler implements HttpHandler {
             path = String.format("%s/%s", dataId, versionId);
         }
 
-        GSIMDataset dataset = client.getDataset("todo");
+        Schema schema = gsimClient.getSchema(dataId).blockingGet();
 
-        SeekableByteChannel channel = backend.read(path);
-
-        Optional<FormatConverter> converter = findFormatConverter(exchange);
-        if (converter.isPresent()) {
-            FormatConverter formatConverter = converter.get();
-            String mediaType = formatConverter.getMediaType();
-            exchange.getResponseHeaders().add(Headers.CONTENT_TYPE, mediaType);
-            Cursor<Long> cursor = getCursor(exchange);
-            exchange.startBlocking();
-            // TODO: Should use the requested header?
-            Status status = formatConverter.read(channel, exchange.getOutputStream(), mediaType, dataset, cursor);
-            Completable.wrap(status).blockingAwait();
-            // TODO: is flush() called by close()?
-            exchange.getOutputStream().flush();
-            exchange.endExchange();
-        } else {
-            exchange.setStatusCode(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+        exchange.startBlocking();
+        OutputStream outputStream = exchange.getOutputStream();
+        try {
+            Completable completable = dataClient.readAndConvert(path, schema, outputStream, mediaType, "");
+            completable.blockingAwait();
+        } catch (UnsupportedMediaTypeException umte) {
+            logger.debug("unsupported media type: " + mediaType);
         }
     }
 
@@ -115,21 +121,5 @@ public class GetDataHandler implements HttpHandler {
         if (Methods.GET.equals(exchange.getRequestMethod())) {
             handleGet(exchange);
         }
-    }
-
-    /**
-     * Finds the first format converter that is compatible with the requested content type from the exchange.
-     */
-    private Optional<FormatConverter> findFormatConverter(HttpServerExchange exchange) {
-        Iterator<String> mediaTypes = exchange.getRequestHeaders().get(Headers.ACCEPT).descendingIterator();
-        while (mediaTypes.hasNext()) {
-            String mediaType = mediaTypes.next();
-            for (FormatConverter converter : converters) {
-                if (converter.doesSupport(mediaType)) {
-                    return Optional.of(converter);
-                }
-            }
-        }
-        return Optional.empty();
     }
 }

@@ -10,7 +10,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import io.reactivex.Flowable;
 import no.ssb.lds.data.client.BinaryBackend;
-import no.ssb.lds.data.common.Configuration;
 
 import java.io.IOException;
 import java.net.URI;
@@ -25,15 +24,14 @@ import java.util.Comparator;
 public class GoogleCloudStorageBackend implements BinaryBackend {
 
     private final Storage storage;
-    private final String prefix;
     private final Integer writeChunkSize;
     private final Integer readChunkSize;
 
     public GoogleCloudStorageBackend(Configuration configuration) {
         this.storage = StorageOptions.getDefaultInstance().getService();
-        this.prefix = configuration.getDataPrefix();
-        this.writeChunkSize = configuration.getGoogleCloud().getWriteChunkSize();
-        this.readChunkSize = configuration.getGoogleCloud().getReadChunkSize();
+        //this.prefix = configuration.getDataPrefix();
+        this.writeChunkSize = configuration.getWriteChunkSize();
+        this.readChunkSize = configuration.getReadChunkSize();
     }
 
     private static String fuse(String start, String end) {
@@ -51,9 +49,7 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
         return Flowable.defer(() -> {
             Page<Blob> pages = storage.list(id.getBucket(), Storage.BlobListOption.prefix(id.getName()));
             return Flowable.fromIterable(pages.iterateAll());
-        }).map(blob -> {
-            return fuse(prefix, blob.getName()).replaceFirst(prefix, "");
-        }).sorted(Comparator.reverseOrder());
+        }).map(blob -> blob.getName()).sorted(Comparator.reverseOrder());
     }
 
     @Override
@@ -119,7 +115,7 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
 
     private BlobId getBlobId(String path) throws IOException {
         try {
-            URI uri = new URI(prefix + path);
+            URI uri = new URI(path);
             String bucket = uri.getHost();
             String name = uri.getPath();
             if (name.startsWith("/")) {
@@ -127,7 +123,32 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
             }
             return BlobId.of(bucket, name);
         } catch (URISyntaxException use) {
-            throw new IOException("could not get bucket and name from " + prefix + path);
+            throw new IOException("could not get bucket and name from " + path);
+        }
+    }
+
+    public static class Configuration {
+
+        private Integer readChunkSize;
+        private Integer writeChunkSize;
+
+        public Configuration() {
+        }
+
+        public Integer getReadChunkSize() {
+            return readChunkSize;
+        }
+
+        public void setReadChunkSize(Integer readChunkSize) {
+            this.readChunkSize = readChunkSize;
+        }
+
+        public Integer getWriteChunkSize() {
+            return writeChunkSize;
+        }
+
+        public void setWriteChunkSize(Integer writeChunkSize) {
+            this.writeChunkSize = writeChunkSize;
         }
     }
 }
