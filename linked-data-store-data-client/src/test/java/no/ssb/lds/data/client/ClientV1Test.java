@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.MalformedURLException;
 
+@Deprecated
 class ClientV1Test {
 
     @Test

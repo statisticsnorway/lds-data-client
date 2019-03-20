@@ -15,7 +15,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 
-
+@Deprecated
 public class ClientV1 implements Client {
 
     public static final GraphQLTemplate TEMPLATE = new GraphQLTemplate();
