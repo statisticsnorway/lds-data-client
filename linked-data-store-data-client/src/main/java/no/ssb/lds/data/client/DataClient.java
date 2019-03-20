@@ -10,6 +10,7 @@ import org.apache.avro.generic.GenericRecord;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.SeekableByteChannel;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -24,11 +25,20 @@ import java.util.Objects;
  */
 public class DataClient {
 
-    // TODO: Replace with builder.
-    protected final Configuration configuration;
+    private final BinaryBackend backend;
+    private final List<FormatConverter> converters;
+    private final ParquetProvider provider;
+    private final Configuration configuration;
 
-    public DataClient(Configuration configuration) {
-        this.configuration = Objects.requireNonNull(configuration);
+    private DataClient(Builder builder) {
+        this.backend = Objects.requireNonNull(builder.binaryBackend);
+        this.converters = Objects.requireNonNull(builder.converters);
+        this.provider = Objects.requireNonNull(builder.parquetProvider);
+        this.configuration = Objects.requireNonNull(builder.configuration);
+    }
+
+    public static Builder newClient() {
+        return new Builder();
     }
 
     /**
@@ -43,7 +53,7 @@ public class DataClient {
      */
     public Completable convertAndWrite(String dataId, Schema schema, InputStream input, String mediaType,
                                        String token) {
-        for (FormatConverter converter : configuration.getConverters()) {
+        for (FormatConverter converter : converters) {
             if (converter.doesSupport(mediaType)) {
                 Flowable<GenericRecord> records = converter.read(input, mediaType, schema);
                 return writeData(dataId, schema, records, token);
@@ -64,7 +74,7 @@ public class DataClient {
      */
     public Completable readAndConvert(String dataId, Schema schema, OutputStream outputStream,
                                       String mediaType, String token) {
-        for (FormatConverter converter : configuration.getConverters()) {
+        for (FormatConverter converter : converters) {
             if (converter.doesSupport(mediaType)) {
                 Flowable<GenericRecord> records = readData(dataId, schema, token);
                 return converter.write(records, outputStream, mediaType, schema);
@@ -84,8 +94,6 @@ public class DataClient {
      */
     public Completable writeData(String dataId, Schema schema, Flowable<GenericRecord> records, String token) {
         return Completable.using(() -> {
-            BinaryBackend backend = configuration.getBackend();
-            ParquetProvider provider = configuration.getParquetProvider();
             SeekableByteChannel writableChannel = backend.write(dataId);
             return provider.getWriter(writableChannel, schema);
         }, parquetWriter -> {
@@ -107,8 +115,6 @@ public class DataClient {
     public Flowable<GenericRecord> readData(String dataId, Schema schema, String token) {
         // TODO: Do something with token.
         return Flowable.generate(() -> {
-            BinaryBackend backend = configuration.getBackend();
-            ParquetProvider provider = configuration.getParquetProvider();
             SeekableByteChannel readableChannel = backend.read(dataId);
             return provider.getReader(readableChannel, schema, null);
         }, (parquetReader, emitter) -> {
@@ -124,33 +130,43 @@ public class DataClient {
     }
 
     public static class Configuration {
+    }
 
-        private final BinaryBackend backend;
-        private List<FormatConverter> converters;
+    public static class Builder {
+
         private ParquetProvider parquetProvider;
+        private BinaryBackend binaryBackend;
+        private List<FormatConverter> converters = new ArrayList<>();
+        private Configuration configuration;
 
-        public Configuration(BinaryBackend backend) {
-            this.backend = backend;
-        }
 
-        public ParquetProvider getParquetProvider() {
-            return parquetProvider;
-        }
-
-        public void setParquetProvider(ParquetProvider parquetProvider) {
+        public Builder withParquetProvider(ParquetProvider parquetProvider) {
             this.parquetProvider = parquetProvider;
+            return this;
         }
 
-        public BinaryBackend getBackend() {
-            return backend;
+        public Builder withBinaryBackend(BinaryBackend binaryBackend) {
+            this.binaryBackend = binaryBackend;
+            return this;
         }
 
-        public List<FormatConverter> getConverters() {
-            return converters;
+        public Builder withFormatConverter(FormatConverter formatConverter) {
+            this.converters.add(formatConverter);
+            return this;
         }
 
-        public void setConverters(List<FormatConverter> converters) {
-            this.converters = converters;
+        public Builder withFormatConverters(List<FormatConverter> formatConverters) {
+            this.converters.addAll(formatConverters);
+            return this;
+        }
+
+        public Builder withConfiguration(Configuration configuration) {
+            this.configuration = configuration;
+            return this;
+        }
+
+        public DataClient build() {
+            return new DataClient(this);
         }
 
     }
