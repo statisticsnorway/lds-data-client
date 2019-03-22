@@ -6,7 +6,7 @@
 
     <parent>
         <groupId>no.ssb.lds.data</groupId>
-        <artifactId>linked-data-store-data</artifactId>
+        <artifactId>lds-data-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
@@ -50,14 +50,16 @@
             <artifactId>dynamic-configuration</artifactId>
             <version>0.4</version>
         </dependency>
+
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
-            <artifactId>linked-data-store-data-client</artifactId>
+            <artifactId>lds-data-client</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
-            <artifactId>linked-data-store-data-gcs</artifactId>
+            <artifactId>lds-data-gcs</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 

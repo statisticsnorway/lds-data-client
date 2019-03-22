@@ -3,6 +3,13 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>no.ssb.lds.data</groupId>
+        <artifactId>lds-data-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
     <dependencies>
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
@@ -12,13 +19,7 @@
         </dependency>
     </dependencies>
 
-    <parent>
-        <groupId>no.ssb.lds.data</groupId>
-        <artifactId>linked-data-store-data</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
-    </parent>
-
-    <artifactId>linked-data-store-data-local</artifactId>
+    <artifactId>lds-data-local</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
 
