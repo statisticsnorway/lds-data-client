@@ -3,7 +3,6 @@ package no.ssb.lds.data.client;
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import no.ssb.lds.data.client.converters.FormatConverter;
-import no.ssb.lds.data.common.parquet.ParquetProvider;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.filter.PagedRecordFilter;

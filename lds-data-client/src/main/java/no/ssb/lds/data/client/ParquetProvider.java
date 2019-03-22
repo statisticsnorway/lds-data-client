@@ -1,4 +1,4 @@
-package no.ssb.lds.data.common.parquet;
+package no.ssb.lds.data.client;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;

@@ -14,7 +14,7 @@ import io.undertow.util.Methods;
 import io.undertow.util.PathTemplateMatch;
 import io.undertow.util.StatusCodes;
 import no.ssb.lds.data.client.BinaryBackend;
-import no.ssb.lds.data.common.parquet.ParquetProvider;
+import no.ssb.lds.data.client.ParquetProvider;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.slf4j.Logger;

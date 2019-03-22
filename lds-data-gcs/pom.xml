@@ -19,6 +19,7 @@
             <artifactId>guava</artifactId>
             <version>27.0.1-jre</version>
         </dependency>
+
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-storage</artifactId>
@@ -30,11 +31,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
             <artifactId>lds-data-client</artifactId>
             <version>0.0.1-SNAPSHOT</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
 

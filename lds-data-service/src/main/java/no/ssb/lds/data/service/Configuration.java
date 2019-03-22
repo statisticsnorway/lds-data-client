@@ -3,7 +3,7 @@ package no.ssb.lds.data.service;
 import no.ssb.gsim.client.GsimClient;
 import no.ssb.lds.data.GoogleCloudStorageBackend;
 import no.ssb.lds.data.client.DataClient;
-import no.ssb.lds.data.common.parquet.ParquetProvider;
+import no.ssb.lds.data.client.ParquetProvider;
 
 public class Configuration {
 
