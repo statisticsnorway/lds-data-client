@@ -6,6 +6,8 @@ import no.ssb.lds.data.client.converters.FormatConverter;
 import no.ssb.lds.data.common.parquet.ParquetProvider;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.parquet.filter.PagedRecordFilter;
+import org.apache.parquet.filter2.compat.FilterCompat;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -18,8 +20,8 @@ import java.util.Objects;
  * Data client is an abstraction to read and write Parquet files on bucket storage.
  * <p>
  * The data client supports CSV and JSON type conversions and can be extended by implementing the
- * {@link FormatConverter} interface (see {@link no.ssb.lds.data.common.converter.csv.CsvConverter} and
- * {@link no.ssb.lds.data.common.converter.json.JsonConverter} for examples).
+ * {@link FormatConverter} interface (see {@link no.ssb.lds.data.client.converters.CsvConverter} and
+ * {@link no.ssb.lds.data.client.converters.JsonConverter} for examples).
  * <p>
  * One can also read and write {@link GenericRecord}s.
  */
@@ -71,7 +73,7 @@ public class DataClient {
                 return writeData(dataId, schema, records, token);
             }
         }
-        return Completable.error(new IllegalArgumentException("unsupported type " + mediaType));
+        throw new UnsupportedMediaTypeException("unsupported type " + mediaType);
     }
 
     /**
@@ -88,7 +90,18 @@ public class DataClient {
                                       String mediaType, String token) throws UnsupportedMediaTypeException {
         for (FormatConverter converter : converters) {
             if (converter.doesSupport(mediaType)) {
-                Flowable<GenericRecord> records = readData(dataId, schema, token);
+                Flowable<GenericRecord> records = readData(configuration.getLocation() + dataId, schema, token, null);
+                return converter.write(records, outputStream, mediaType, schema);
+            }
+        }
+        throw new UnsupportedMediaTypeException("unsupported type " + mediaType);
+    }
+
+    public Completable readAndConvert(String dataId, Schema schema, OutputStream outputStream,
+                                      String mediaType, String token, Cursor<Long> cursor) throws UnsupportedMediaTypeException {
+        for (FormatConverter converter : converters) {
+            if (converter.doesSupport(mediaType)) {
+                Flowable<GenericRecord> records = readData(configuration.getLocation() + dataId, schema, token, cursor);
                 return converter.write(records, outputStream, mediaType, schema);
             }
         }
@@ -106,7 +119,7 @@ public class DataClient {
      */
     public Completable writeData(String dataId, Schema schema, Flowable<GenericRecord> records, String token) {
         return Completable.using(() -> {
-            SeekableByteChannel writableChannel = backend.write(dataId);
+            SeekableByteChannel writableChannel = backend.write(configuration.getLocation() + dataId);
             return provider.getWriter(writableChannel, schema);
         }, parquetWriter -> {
             return records.doOnNext(record -> parquetWriter.write(record)).ignoreElements();
@@ -122,13 +135,28 @@ public class DataClient {
      * @param dataId the identifier for the data.
      * @param schema the schema used to create the records.
      * @param token  an authentication token.
+     * @param cursor
      * @return a {@link Flowable} of records.
      */
-    public Flowable<GenericRecord> readData(String dataId, Schema schema, String token) {
+    public Flowable<GenericRecord> readData(String dataId, Schema schema, String token, Cursor<Long> cursor) {
         // TODO: Do something with token.
+        // TODO: Handle projection.
+        // TODO: Handle filtering.
+
+        FilterCompat.Filter filter;
+        if (cursor != null) {
+            // Convert to pos + size
+            long start = Math.max(cursor.getAfter() + 1, 0);
+            int size = cursor.getNext() + 1;
+
+            filter = FilterCompat.get(PagedRecordFilter.page(start, size));
+        } else {
+            filter = null;
+        }
+
         return Flowable.generate(() -> {
-            SeekableByteChannel readableChannel = backend.read(dataId);
-            return provider.getReader(readableChannel, schema, null);
+            SeekableByteChannel readableChannel = backend.read(configuration.getLocation() + dataId);
+            return provider.getReader(readableChannel, schema, filter);
         }, (parquetReader, emitter) -> {
             GenericRecord read = parquetReader.read();
             if (read == null) {

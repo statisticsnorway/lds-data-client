@@ -80,12 +80,6 @@ class CsvConverterTest {
     @Test
     void testWrite() {
 
-        InputStream csvStream = new ByteArrayInputStream((
-                "string,int,boolean,float,long,double\r\n" +
-                        "foo,123,true,123.123,123,123.123"
-        ).getBytes());
-
-
         GenericData.Record record = new GenericRecordBuilder(dimensionalSchema)
                 .set("string", "foo")
                 .set("int", 123)

@@ -29,7 +29,6 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
 
     public GoogleCloudStorageBackend(Configuration configuration) {
         this.storage = StorageOptions.getDefaultInstance().getService();
-        //this.prefix = configuration.getDataPrefix();
         this.writeChunkSize = configuration.getWriteChunkSize();
         this.readChunkSize = configuration.getReadChunkSize();
     }
@@ -49,7 +48,7 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
         return Flowable.defer(() -> {
             Page<Blob> pages = storage.list(id.getBucket(), Storage.BlobListOption.prefix(id.getName()));
             return Flowable.fromIterable(pages.iterateAll());
-        }).map(blob -> blob.getName()).sorted(Comparator.reverseOrder());
+        }).map(blob -> String.format("gs://%s/%s",blob.getBucket(), blob.getName())).sorted(Comparator.reverseOrder());
     }
 
     @Override

@@ -101,7 +101,7 @@ public class Server {
 
         // Handles get requests.
         pathTemplate.add(ListVersionsHandler.PATH, new AllowedMethodsHandler(
-                new ListVersionsHandler(parquetProvider, backend),
+                new ListVersionsHandler(parquetProvider, backend, configuration.getData().getLocation()),
                 Methods.GET, Methods.HEAD, Methods.OPTIONS
         ));
 

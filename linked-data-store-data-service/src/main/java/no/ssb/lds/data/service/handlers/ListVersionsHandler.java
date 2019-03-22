@@ -2,7 +2,6 @@ package no.ssb.lds.data.service.handlers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.huxhorn.sulky.ulid.ULID;
-import io.reactivex.Flowable;
 import io.reactivex.schedulers.Schedulers;
 import io.undertow.attribute.ExchangeAttributes;
 import io.undertow.predicate.Predicate;
@@ -24,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,10 +51,12 @@ public class ListVersionsHandler implements HttpHandler {
     private final BinaryBackend backend;
 
     private final Logger logger = LoggerFactory.getLogger(ListVersionsHandler.class);
+    private final String location;
 
-    public ListVersionsHandler(ParquetProvider provider, BinaryBackend backend) {
+    public ListVersionsHandler(ParquetProvider provider, BinaryBackend backend, String location) {
         this.provider = Objects.requireNonNull(provider);
         this.backend = Objects.requireNonNull(backend);
+        this.location = Objects.requireNonNull(location);
     }
 
     @Override
@@ -81,20 +83,22 @@ public class ListVersionsHandler implements HttpHandler {
 
         // Extract path variables.
         Map<String, String> parameters = exchange.getAttachment(PathTemplateMatch.ATTACHMENT_KEY).getParameters();
-        String dataId = parameters.get(DATA_ID);
+        String dataId = location + parameters.get(DATA_ID);
 
-        Iterable<VersionRepresentation> versions = backend.list(dataId).concatMapEager(path -> {
-            return Flowable.just(path).subscribeOn(Schedulers.computation())
-                    .map(version -> {
-                        logger.debug("Reading metadata for {}", version);
-                        try (SeekableByteChannel channel = backend.read(version)) {
-                            Long size = channel.size();
-                            return new VersionRepresentation(version.split("/")[1], size, provider.getMetadata(channel));
-                        }
-                    });
-
-        }).toList().blockingGet();
-
+        // TODO: Move to DataClient.
+        Iterable<VersionRepresentation> versions = backend.list(dataId)
+                .parallel()
+                .runOn(Schedulers.computation())
+                .map(version -> {
+                    logger.debug("Reading metadata for {}", version);
+                    try (SeekableByteChannel channel = backend.read(version)) {
+                        Long size = channel.size();
+                        String[] parts = version.split("/");
+                        return new VersionRepresentation(parts[parts.length - 1], size, provider.getMetadata(channel));
+                    }
+                }).sequential()
+                .sorted(Comparator.comparing(VersionRepresentation::getCreatedAt))
+                .blockingIterable();
         try {
             exchange.setStatusCode(StatusCodes.OK);
             exchange.startBlocking();

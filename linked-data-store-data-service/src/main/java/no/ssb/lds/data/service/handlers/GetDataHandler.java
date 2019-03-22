@@ -10,6 +10,7 @@ import io.undertow.util.PathTemplateMatch;
 import io.undertow.util.StatusCodes;
 import no.ssb.gsim.client.GsimClient;
 import no.ssb.lds.data.client.BinaryBackend;
+import no.ssb.lds.data.client.Cursor;
 import no.ssb.lds.data.client.DataClient;
 import no.ssb.lds.data.client.UnsupportedMediaTypeException;
 import org.apache.avro.Schema;
@@ -20,8 +21,6 @@ import java.io.OutputStream;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map;
-
-import static no.ssb.lds.data.common.converter.FormatConverter.Cursor;
 
 public class GetDataHandler implements HttpHandler {
 
@@ -96,11 +95,12 @@ public class GetDataHandler implements HttpHandler {
         }
 
         Schema schema = gsimClient.getSchema(dataId).blockingGet();
+        Cursor<Long> cursor = getCursor(exchange);
 
         exchange.startBlocking();
         OutputStream outputStream = exchange.getOutputStream();
         try {
-            Completable completable = dataClient.readAndConvert(path, schema, outputStream, mediaType, "");
+            Completable completable = dataClient.readAndConvert(path, schema, outputStream, mediaType, "", cursor);
             completable.blockingAwait();
         } catch (UnsupportedMediaTypeException umte) {
             logger.debug("unsupported media type: " + mediaType);
