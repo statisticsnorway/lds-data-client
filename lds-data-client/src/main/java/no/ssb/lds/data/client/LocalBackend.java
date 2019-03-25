@@ -1,4 +1,4 @@
-package no.ssb.lds.data;
+package no.ssb.lds.data.client;
 
 import io.reactivex.Flowable;
 import no.ssb.lds.data.client.BinaryBackend;
