@@ -50,7 +50,7 @@ public class ParquetProvider {
         ParquetWriter<GenericRecord> writer = AvroParquetWriter.<GenericRecord>builder(new OutputFile() {
 
             @Override
-            public PositionOutputStream create(long blockSizeHint) throws IOException {
+            public PositionOutputStream create(long blockSizeHint) {
                 return new DelegatingPositionOutputStream(Channels.newOutputStream(output)) {
                     @Override
                     public long getPos() throws IOException {
@@ -60,7 +60,7 @@ public class ParquetProvider {
             }
 
             @Override
-            public PositionOutputStream createOrOverwrite(long blockSizeHint) throws IOException {
+            public PositionOutputStream createOrOverwrite(long blockSizeHint) {
                 return new DelegatingPositionOutputStream(Channels.newOutputStream(output)) {
                     @Override
                     public long getPos() throws IOException {

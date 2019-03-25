@@ -148,7 +148,7 @@ public class DataClient {
 
             filter = FilterCompat.get(PagedRecordFilter.page(start, size));
         } else {
-            filter = null;
+            filter = FilterCompat.NOOP;
         }
 
         return Flowable.generate(() -> {

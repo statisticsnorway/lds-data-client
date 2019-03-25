@@ -84,7 +84,7 @@ public class GetDataHandler implements HttpHandler {
 
         // Check if exists.
         String path;
-        if (versionId.equals(LATEST)) {
+        if (LATEST.equals(versionId)) {
             path = backend.list(dataId).blockingFirst();
             if (path == null) {
                 ResponseCodeHandler.HANDLE_404.handleRequest(exchange);

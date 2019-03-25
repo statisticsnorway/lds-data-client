@@ -2,7 +2,6 @@ package no.ssb.lds.data.client.converters;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.reactivex.Flowable;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -15,24 +14,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 
+import static no.ssb.lds.data.client.DataClientTest.DIMENSIONAL_SCHEMA;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class JsonConverterTest {
 
-    private Schema dimensionalSchema;
     private JsonConverter converter;
 
     @BeforeEach
     void setUp() {
         converter = new JsonConverter(new ObjectMapper());
-        dimensionalSchema = Schema.createRecord(List.of(
-                new Schema.Field("string", Schema.create(Schema.Type.STRING), "A string", (Object) null),
-                new Schema.Field("int", Schema.create(Schema.Type.INT), "An int", (Object) null),
-                new Schema.Field("boolean", Schema.create(Schema.Type.BOOLEAN), "A boolean", (Object) null),
-                new Schema.Field("float", Schema.create(Schema.Type.FLOAT), "A float", (Object) null),
-                new Schema.Field("long", Schema.create(Schema.Type.LONG), "A long", (Object) null),
-                new Schema.Field("double", Schema.create(Schema.Type.DOUBLE), "A double", (Object) null)
-        ));
     }
 
     @Test
@@ -41,7 +32,7 @@ class JsonConverterTest {
         List<GenericRecord> records = converter.read(
                 InputStream.nullInputStream(),
                 converter.getMediaType(),
-                dimensionalSchema
+                DIMENSIONAL_SCHEMA
         ).toList().blockingGet();
 
         assertThat(records).isEmpty();
@@ -50,7 +41,7 @@ class JsonConverterTest {
                 Flowable.empty(),
                 OutputStream.nullOutputStream(),
                 converter.getMediaType(),
-                dimensionalSchema
+                DIMENSIONAL_SCHEMA
         ).blockingAwait();
 
     }
@@ -63,11 +54,11 @@ class JsonConverterTest {
                         "\"long\": 123, \"double\": 123.123}]"
         ).getBytes());
 
-        List<GenericRecord> records = converter.read(jsonStream, converter.getMediaType(), dimensionalSchema).toList()
+        List<GenericRecord> records = converter.read(jsonStream, converter.getMediaType(), DIMENSIONAL_SCHEMA).toList()
                 .blockingGet();
 
         assertThat(records).containsExactly(
-                new GenericRecordBuilder(dimensionalSchema)
+                new GenericRecordBuilder(DIMENSIONAL_SCHEMA)
                         .set("string", "foo")
                         .set("int", 123)
                         .set("boolean", true)
@@ -81,7 +72,7 @@ class JsonConverterTest {
     @Test
     void testWrite() {
 
-        GenericData.Record record = new GenericRecordBuilder(dimensionalSchema)
+        GenericData.Record record = new GenericRecordBuilder(DIMENSIONAL_SCHEMA)
                 .set("string", "foo")
                 .set("int", 123)
                 .set("boolean", true)
@@ -95,7 +86,7 @@ class JsonConverterTest {
         converter.write(
                 Flowable.just(record),
                 output,
-                converter.getMediaType(), dimensionalSchema
+                converter.getMediaType(), DIMENSIONAL_SCHEMA
         ).blockingAwait();
 
         assertThat(new String(output.toByteArray())).isEqualTo(
