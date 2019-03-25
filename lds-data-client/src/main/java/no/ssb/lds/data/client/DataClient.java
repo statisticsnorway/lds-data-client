@@ -21,8 +21,6 @@ import java.util.Objects;
  * The data client supports CSV and JSON type conversions and can be extended by implementing the
  * {@link FormatConverter} interface (see {@link no.ssb.lds.data.client.converters.CsvConverter} and
  * {@link no.ssb.lds.data.client.converters.JsonConverter} for examples).
- * <p>
- * One can also read and write {@link GenericRecord}s.
  */
 public class DataClient {
 

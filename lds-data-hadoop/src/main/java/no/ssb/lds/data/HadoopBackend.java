@@ -96,7 +96,7 @@ public class HadoopBackend implements BinaryBackend {
             }
 
             @Override
-            public long position() throws IOException {
+            public long position() {
                 return dataOutputStream.getPos();
             }
 
