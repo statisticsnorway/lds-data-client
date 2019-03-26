@@ -30,7 +30,7 @@ Add the desired modules to your project:
 </dependency>
 ```
 
-Instanciate the client: 
+Instantiate the client: 
 
 ```java
 
@@ -50,3 +50,7 @@ client = DataClient.builder()
         .build();
 
 ```
+
+## Class diagram
+
+![Class diagram](http://www.plantuml.com/plantuml/proxy?src=https://raw.githubusercontent.com/statisticsnorway/lds-data-client/master/lds-data-client/src/main/resources/class-diagram.puml)

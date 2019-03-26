@@ -1,0 +1,21 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/statisticsnorway/lds-gsim-client/master/src/main/resources/class-diagram.pumlhttps://raw.githubusercontent.com/statisticsnorway/lds-gsim-client/master/src/main/resources/class-diagram.puml
+
+hide GsimClient
+hide SchemaConverter
+hide ApolloClient
+
+package "LDS Data GCS" {
+    class GoogleCloudStorageBackend
+}
+
+package "LDS Data Hadoop" {
+    class HadoopBackend
+
+
+}
+
+HadoopBackend --|> BinaryBackend
+GoogleCloudStorageBackend --|> BinaryBackend
+
+@enduml
