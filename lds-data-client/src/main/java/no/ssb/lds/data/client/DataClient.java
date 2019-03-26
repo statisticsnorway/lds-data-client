@@ -85,20 +85,14 @@ public class DataClient {
      */
     public Completable readAndConvert(String dataId, Schema schema, OutputStream outputStream,
                                       String mediaType, String token) throws UnsupportedMediaTypeException {
-        for (FormatConverter converter : converters) {
-            if (converter.doesSupport(mediaType)) {
-                Flowable<GenericRecord> records = readData(configuration.getLocation() + dataId, schema, token, null);
-                return converter.write(records, outputStream, mediaType, schema);
-            }
-        }
-        throw new UnsupportedMediaTypeException("unsupported type " + mediaType);
+        return readAndConvert(dataId, schema, outputStream, mediaType, token, null);
     }
 
     public Completable readAndConvert(String dataId, Schema schema, OutputStream outputStream,
                                       String mediaType, String token, Cursor<Long> cursor) throws UnsupportedMediaTypeException {
         for (FormatConverter converter : converters) {
             if (converter.doesSupport(mediaType)) {
-                Flowable<GenericRecord> records = readData(configuration.getLocation() + dataId, schema, token, cursor);
+                Flowable<GenericRecord> records = readData(dataId, schema, token, cursor);
                 return converter.write(records, outputStream, mediaType, schema);
             }
         }
