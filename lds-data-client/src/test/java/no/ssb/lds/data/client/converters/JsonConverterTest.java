@@ -94,4 +94,14 @@ class JsonConverterTest {
                         "\"long\": 123, \"double\": 123.123}]"
         );
     }
+
+    @Test
+    void testSupportsMimeWithParams() {
+        assertThat(converter.doesSupport(converter.getMediaType() + ";charset=utf-8)")).isTrue();
+    }
+
+    @Test
+    void testSupportsMime() {
+        assertThat(converter.doesSupport(converter.getMediaType())).isTrue();
+    }
 }

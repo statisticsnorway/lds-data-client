@@ -27,7 +27,10 @@ public class CsvConverter implements FormatConverter {
 
     @Override
     public boolean doesSupport(String mediaType) {
-        return MEDIA_TYPE.equals(mediaType);
+        if (mediaType == null) {
+            return false;
+        }
+        return mediaType.startsWith(MEDIA_TYPE);
     }
 
     @Override

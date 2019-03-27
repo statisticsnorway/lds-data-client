@@ -94,4 +94,14 @@ class CsvConverterTest {
                 "foo,123,true,123.123,123,123.123\r\n"
         );
     }
+
+    @Test
+    void testSupportsMimeWithParams() {
+        assertThat(converter.doesSupport(converter.getMediaType() + ";charset=utf-8)")).isTrue();
+    }
+
+    @Test
+    void testSupportsMime() {
+        assertThat(converter.doesSupport(converter.getMediaType())).isTrue();
+    }
 }
