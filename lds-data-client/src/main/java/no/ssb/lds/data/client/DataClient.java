@@ -5,7 +5,6 @@ import io.reactivex.Flowable;
 import no.ssb.lds.data.client.converters.FormatConverter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.parquet.filter.PagedRecordFilter;
 import org.apache.parquet.filter2.compat.FilterCompat;
 
 import java.io.InputStream;
@@ -135,16 +134,21 @@ public class DataClient {
         // TODO: Handle filtering.
 
         FilterCompat.Filter filter;
+        int size = 100;
         if (cursor != null) {
             // Convert to pos + size
             long start = Math.max(cursor.getAfter() + 1, 0);
-            int size = cursor.getNext() + 1;
-
-            filter = FilterCompat.get(PagedRecordFilter.page(start, size));
+            size = cursor.getNext() + 1;
+            filter = FilterCompat.get(new PagedRecordFilter(start, start + size));
         } else {
             filter = FilterCompat.NOOP;
         }
 
+        Flowable<GenericRecord> records = readRecords(dataId, schema, filter);
+        return records.take(size);
+    }
+
+    private Flowable<GenericRecord> readRecords(String dataId, Schema schema, FilterCompat.Filter filter) {
         return Flowable.generate(() -> {
             SeekableByteChannel readableChannel = backend.read(configuration.getLocation() + dataId);
             return provider.getReader(readableChannel, schema, filter);
