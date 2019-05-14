@@ -2,7 +2,18 @@ kind: pipeline
 name: default
 
 steps:
+- name: build
+  image: maven:3.6.0-jdk-11-slim
+  commands:
+  - mvn install -gs settings.xml
+  
 - name: test
   image: maven:3.6.0-jdk-11-slim
   commands:
   - mvn clean test -B
+  
+- name: deploy
+  image: maven:3.6.0-jdk-11-slim
+  commands:
+  - mvn deploy:deploy -B -DskipTests
+
