@@ -16,4 +16,8 @@ steps:
   image: maven:3.6.0-jdk-11-slim
   commands:
   - mvn deploy:deploy -B -DskipTests
+  when:
+    branch:
+    - master
+    - develop
 
