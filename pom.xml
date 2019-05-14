@@ -20,6 +20,17 @@
         <module>lds-data-hadoop</module>
         <module>lds-data-gcs</module>
     </modules>
+         
+    <distributionManagement>
+        <repository>
+            <id>ssb-releases</id>
+            <url>https://nexus.infra.ssbmod.net/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>ssb-snapshots</id>
+            <url>https://nexus.infra.ssbmod.net/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <build>
         <plugins>
