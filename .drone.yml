@@ -20,4 +20,3 @@ steps:
     branch:
     - master
     - develop
-  
