@@ -11,6 +11,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,6 +30,7 @@ public class DataClientTest {
 
     private DataClient client;
     private String prefix;
+    private GenericRecordBuilder recordBuilder;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -45,12 +49,13 @@ public class DataClientTest {
                 .withBinaryBackend(new LocalBackend(prefix))
                 .withConfiguration(clientConfiguration)
                 .build();
+        recordBuilder = new GenericRecordBuilder(DIMENSIONAL_SCHEMA);
     }
 
     @Test
     void testReadWRite() {
 
-        GenericData.Record record = new GenericRecordBuilder(DIMENSIONAL_SCHEMA)
+        GenericData.Record record = recordBuilder
                 .set("string", "foo")
                 .set("int", 123)
                 .set("boolean", true)
@@ -68,5 +73,55 @@ public class DataClientTest {
 
         assertThat(readRecords).containsExactlyInAnyOrderElementsOf(records.toList().blockingGet());
 
+    }
+
+    @Test
+    public void testWindowedWrite() {
+
+        // Demonstrate the use of windowing (time and size) with the data client.
+
+        Random random = new Random();
+        Flowable<Long> unlimitedFlowable = Flowable.generate(() -> {
+            AtomicLong size = new AtomicLong(random.nextInt(5000) + 5000);
+            System.out.println("Starting generator with size " + size.get());
+            return size;
+        }, (atomicLong, emitter) -> {
+            Thread.sleep(random.nextInt(10));
+            long value = atomicLong.decrementAndGet();
+            if (value == 0L) {
+                emitter.onComplete();
+            } else {
+                emitter.onNext(value);
+            }
+        }, atomicLong -> {
+            System.out.println("Done generating");
+        });
+
+        unlimitedFlowable
+                // Transform to records.
+                .map(income -> {
+                    return (GenericRecord) recordBuilder
+                            .set("string", income.toString())
+                            .set("int", income)
+                            .set("boolean", income % 2 == 0)
+                            .set("float", income / 2)
+                            .set("long", income)
+                            .set("double", income / 2)
+                            .build();
+                })
+                // Buffer by size and time. Max 1000 or 5 seconds.
+                .window(
+                        5,
+                        TimeUnit.SECONDS,
+                        1000,
+                        true
+                )
+                // Write a file for each group.
+                .flatMapCompletable(groupOfOneThousand -> {
+                    System.out.println("Writing a group...");
+                    return client.writeData("test" + System.currentTimeMillis(), DIMENSIONAL_SCHEMA, groupOfOneThousand, "");
+                }, false, 10)
+                // Wait.
+                .blockingAwait();
     }
 }
