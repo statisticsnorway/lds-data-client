@@ -1,6 +1,8 @@
 package no.ssb.lds.data.client;
 
 import io.reactivex.Flowable;
+import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -14,6 +16,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,7 +31,6 @@ public class DataClientTest {
             new Schema.Field("long", Schema.create(Schema.Type.LONG), "A long", (Object) null),
             new Schema.Field("double", Schema.create(Schema.Type.DOUBLE), "A double", (Object) null)
     ));
-
     private DataClient client;
     private String prefix;
     private GenericRecordBuilder recordBuilder;
@@ -65,9 +68,7 @@ public class DataClientTest {
                 .build();
 
         Flowable<GenericRecord> records = Flowable.range(1, 1000).map(integer -> record);
-
-        client.writeData("test", DIMENSIONAL_SCHEMA, records, "").blockingAwait();
-
+        client.writeAllData("test", DIMENSIONAL_SCHEMA, records, "").blockingAwait();
         List<GenericRecord> readRecords = client.readData("test", DIMENSIONAL_SCHEMA, "", null)
                 .toList().blockingGet();
 
@@ -76,52 +77,95 @@ public class DataClientTest {
     }
 
     @Test
-    public void testWindowedWrite() {
+    void testUnbounded() {
 
         // Demonstrate the use of windowing (time and size) with the data client.
 
+        AtomicLong counter = new AtomicLong(0);
         Random random = new Random();
-        Flowable<Long> unlimitedFlowable = Flowable.generate(() -> {
-            AtomicLong size = new AtomicLong(random.nextInt(5000) + 5000);
-            System.out.println("Starting generator with size " + size.get());
-            return size;
-        }, (atomicLong, emitter) -> {
-            Thread.sleep(random.nextInt(10));
-            long value = atomicLong.decrementAndGet();
-            if (value == 0L) {
-                emitter.onComplete();
+        Flowable<Long> unlimitedFlowable = Flowable.generate(emitter -> {
+
+            if (counter.incrementAndGet() <= 500) {
+                // System.out.println(Thread.currentThread() + ": emit " + counter.get());
+                emitter.onNext(counter.get());
             } else {
-                emitter.onNext(value);
+                // System.out.println(Thread.currentThread() + ": emit done");
+                emitter.onComplete();
             }
-        }, atomicLong -> {
-            System.out.println("Done generating");
+            try {
+                Thread.sleep(random.nextInt(5) + 5);
+            } catch (InterruptedException ie) {
+                Thread.interrupted();
+            }
         });
 
-        unlimitedFlowable
-                // Transform to records.
-                .map(income -> {
-                    return (GenericRecord) recordBuilder
-                            .set("string", income.toString())
-                            .set("int", income)
-                            .set("boolean", income % 2 == 0)
-                            .set("float", income / 2)
-                            .set("long", income)
-                            .set("double", income / 2)
-                            .build();
-                })
-                // Buffer by size and time. Max 1000 or 5 seconds.
-                .window(
-                        5,
-                        TimeUnit.SECONDS,
-                        1000,
-                        true
-                )
-                // Write a file for each group.
-                .flatMapCompletable(groupOfOneThousand -> {
-                    System.out.println("Writing a group...");
-                    return client.writeData("test" + System.currentTimeMillis(), DIMENSIONAL_SCHEMA, groupOfOneThousand, "");
-                }, false, 10)
-                // Wait.
-                .blockingAwait();
+        // Convert to record that contains extra information.
+        Flowable<PositionedRecord> recordFlowable = unlimitedFlowable.map(income -> {
+            GenericData.Record record = recordBuilder.set("string", income.toString()).set("int", income)
+                    .set("boolean", income % 2 == 0).set("float", income / 2).set("long", income)
+                    .set("double", income / 2).build();
+            return new PositionedRecord(record, income / 10);
+        });
+
+        Observable<PositionedRecord> feedBack = client.writeDataUnbounded(
+                () -> "testUnbounded" + System.currentTimeMillis(),
+                DIMENSIONAL_SCHEMA,
+                recordFlowable,
+                1,
+                TimeUnit.MINUTES,
+                10,
+                ""
+        );
+
+        List<Long> positions = feedBack.map(positionedRecord -> positionedRecord.getPosition()).toList().blockingGet();
+
+        assertThat(positions).containsExactlyElementsOf(
+                Stream.iterate(1L, t -> t + 1).limit(50).collect(Collectors.toList())
+        );
+
+    }
+
+    private static class PositionedRecord implements GenericRecord {
+        private final Long position;
+        private final GenericRecord delegate;
+
+        private PositionedRecord(GenericRecord delegate, Long position) {
+            this.position = position;
+            this.delegate = delegate;
+        }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
+        }
+
+        public Long getPosition() {
+            return position;
+        }
+
+        @Override
+        public void put(String s, Object o) {
+            delegate.put(s, o);
+        }
+
+        @Override
+        public Object get(String s) {
+            return delegate.get(s);
+        }
+
+        @Override
+        public void put(int i, Object o) {
+            delegate.put(i, o);
+        }
+
+        @Override
+        public Object get(int i) {
+            return delegate.get(i);
+        }
+
+        @Override
+        public Schema getSchema() {
+            return delegate.getSchema();
+        }
     }
 }

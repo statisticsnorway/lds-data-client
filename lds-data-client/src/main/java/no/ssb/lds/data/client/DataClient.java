@@ -2,10 +2,12 @@ package no.ssb.lds.data.client;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
+import io.reactivex.Observable;
 import no.ssb.lds.data.client.converters.FormatConverter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.hadoop.ParquetWriter;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -13,6 +15,8 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Data client is an abstraction to read and write Parquet files on bucket storage.
@@ -66,7 +70,7 @@ public class DataClient {
         for (FormatConverter converter : converters) {
             if (converter.doesSupport(mediaType)) {
                 Flowable<GenericRecord> records = converter.read(input, mediaType, schema);
-                return writeData(dataId, schema, records, token);
+                return writeAllData(dataId, schema, records, token);
             }
         }
         throw new UnsupportedMediaTypeException("unsupported type " + mediaType);
@@ -99,6 +103,27 @@ public class DataClient {
     }
 
     /**
+     * Write an unbounded sequence of {@link GenericRecord}s to the bucket storage.
+     * <p>
+     * The records will be written in "batches" of size count or when the timespan duration elapsed. The last value of
+     * each batch is returned in an {@link Observable}.
+     *
+     * @param idSupplier a supplier for the id called each time a file is flushed.
+     * @param records    the records to write.
+     * @param timeWindow   the period of time before a batch should be written.
+     * @param unit the unit of time that applies to the timespan argument.
+     * @param countWindow the maximum size of a batch before it should be written.
+     * @return an {@link Observable} emitting the last record in each batch.
+     */
+    public <R extends GenericRecord> Observable<R> writeDataUnbounded(
+            Supplier<String> idSupplier, Schema schema, Flowable<R> records, long timeWindow, TimeUnit unit, long countWindow,
+            String token) {
+        return records.window(timeWindow, unit, countWindow, true).switchMapMaybe(recordsWindow -> {
+            return writeData(idSupplier.get(), schema, recordsWindow, token).lastElement();
+        }).toObservable();
+    }
+
+    /**
      * Write a sequence of {@link GenericRecord}s to the bucket storage.
      *
      * @param dataId  an opaque identifier for the data.
@@ -107,16 +132,33 @@ public class DataClient {
      * @param token   an authentication token.
      * @return a completable that completes once the data is saved.
      */
-    public Completable writeData(String dataId, Schema schema, Flowable<GenericRecord> records, String token) {
-        return Completable.using(() -> {
-            SeekableByteChannel writableChannel = backend.write(configuration.getLocation() + dataId);
-            return provider.getWriter(writableChannel, schema);
-        }, parquetWriter -> {
-            return records.doOnNext(record -> parquetWriter.write(record)).ignoreElements();
-        }, parquetWriter -> {
-            parquetWriter.close();
-        });
+    public Completable writeAllData(String dataId, Schema schema, Flowable<GenericRecord> records, String token) {
+        return writeData(dataId, schema, records, token).ignoreElements();
+    }
 
+    /**
+     * Write a sequence of {@link GenericRecord}s to the bucket storage.
+     *
+     * @param dataId  an opaque identifier for the data.
+     * @param schema  the schema used to create the records.
+     * @param records the records to write.
+     * @param token   an authentication token.
+     * @return a completable that completes once the data is saved.
+     */
+    public <R extends GenericRecord> Flowable<R> writeData(String dataId, Schema schema, Flowable<R> records, String token) {
+        return Flowable.defer(() -> {
+            SeekableByteChannel channel = backend.write(configuration.getLocation() + dataId);
+            ParquetWriter<GenericRecord> writer = provider.getWriter(channel, schema);
+            return records.doAfterNext(record -> {
+                writer.write(record);
+            }).doOnComplete(() -> {
+                // TODO: We should add a two-step write API.
+            }).doOnError(throwable -> {
+                // TODO: We should add a two-step write API.
+            }).doFinally(() -> {
+                writer.close();
+            });
+        });
     }
 
     /**
