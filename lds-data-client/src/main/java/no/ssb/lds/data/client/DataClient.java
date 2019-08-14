@@ -7,8 +7,11 @@ import no.ssb.lds.data.client.converters.FormatConverter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.SeekableByteChannel;
@@ -108,10 +111,10 @@ public class DataClient {
      * The records will be written in "batches" of size count or when the timespan duration elapsed. The last value of
      * each batch is returned in an {@link Observable}.
      *
-     * @param idSupplier a supplier for the id called each time a file is flushed.
-     * @param records    the records to write.
-     * @param timeWindow   the period of time before a batch should be written.
-     * @param unit the unit of time that applies to the timespan argument.
+     * @param idSupplier  a supplier for the id called each time a file is flushed.
+     * @param records     the records to write.
+     * @param timeWindow  the period of time before a batch should be written.
+     * @param unit        the unit of time that applies to the timespan argument.
      * @param countWindow the maximum size of a batch before it should be written.
      * @return an {@link Observable} emitting the last record in each batch.
      */
@@ -207,6 +210,14 @@ public class DataClient {
         }, parquetReader -> {
             parquetReader.close();
         });
+    }
+
+    public ParquetMetadata readMetadata(String dataId, String token) throws IOException {
+        String path = configuration.getLocation() + dataId;
+        try (SeekableByteChannel channel = backend.read(path)) {
+            ParquetFileReader parquetFileReader = provider.getMetadata(channel);
+            return parquetFileReader.getFooter();
+        }
     }
 
     public static class Configuration {

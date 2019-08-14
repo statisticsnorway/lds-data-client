@@ -2,16 +2,19 @@ package no.ssb.lds.data.client;
 
 import io.reactivex.Flowable;
 import io.reactivex.Observable;
-import io.reactivex.schedulers.Schedulers;
+import io.reactivex.Single;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -39,8 +42,8 @@ public class DataClientTest {
     void setUp() throws IOException {
 
         ParquetProvider.Configuration parquetConfiguration = new ParquetProvider.Configuration();
-        parquetConfiguration.setPageSize(8 * 1024 * 1024);
-        parquetConfiguration.setRowGroupSize(64 * 1024 * 1024);
+        parquetConfiguration.setPageSize(128);
+        parquetConfiguration.setRowGroupSize(8 * 128);
 
         DataClient.Configuration clientConfiguration = new DataClient.Configuration();
 
@@ -56,23 +59,50 @@ public class DataClientTest {
     }
 
     @Test
-    void testReadWRite() {
+    void testWithCursor() throws IOException {
 
-        GenericData.Record record = recordBuilder
+        Flowable<GenericRecord> records = generateRecords(1000);
+        client.writeAllData("test", DIMENSIONAL_SCHEMA, records, "").blockingAwait();
+
+
+        ParquetMetadata metadata = client.readMetadata("test", "token");
+        Long size = 0L;
+        for (BlockMetaData block : metadata.getBlocks()) {
+            size += block.getRowCount();
+        }
+
+        Single<GenericRecord> last = client.readData("test", DIMENSIONAL_SCHEMA, "token", new Cursor<>(1, size - 1))
+                .firstOrError();
+
+        System.out.println("READING!");
+        GenericRecord genericRecord = last.blockingGet();
+        System.out.println(genericRecord);
+
+    }
+
+    private Flowable<GenericRecord> generateRecords(int count) {
+        GenericRecordBuilder record = recordBuilder
                 .set("string", "foo")
-                .set("int", 123)
                 .set("boolean", true)
                 .set("float", 123.123F)
                 .set("long", 123L)
-                .set("double", 123.123D)
-                .build();
+                .set("double", 123.123D);
 
-        Flowable<GenericRecord> records = Flowable.range(1, 1000).map(integer -> record);
+        return Flowable.range(1, count)
+                .map(integer -> record.set("int", integer).build());
+    }
+
+    @Test
+    void testReadWRite() {
+
+        Flowable<GenericRecord> records = generateRecords(100);
         client.writeAllData("test", DIMENSIONAL_SCHEMA, records, "").blockingAwait();
         List<GenericRecord> readRecords = client.readData("test", DIMENSIONAL_SCHEMA, "", null)
                 .toList().blockingGet();
 
-        assertThat(readRecords).containsExactlyInAnyOrderElementsOf(records.toList().blockingGet());
+        assertThat(readRecords)
+                .usingElementComparator(Comparator.comparing(r -> ((Integer) r.get("int"))))
+                .containsExactlyInAnyOrderElementsOf(records.toList().blockingGet());
 
     }
 
