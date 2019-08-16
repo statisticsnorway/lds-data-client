@@ -3,14 +3,11 @@ package no.ssb.lds.data;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.WriteChannel;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.*;
 import io.reactivex.Flowable;
 import no.ssb.lds.data.client.BinaryBackend;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -110,6 +107,22 @@ public class GoogleCloudStorageBackend implements BinaryBackend {
                 writer.close();
             }
         };
+    }
+
+    @Override
+    public void move(String from, String to) throws IOException {
+        Blob fromBlob = storage.get(getBlobId(from));
+        CopyWriter copyWriter = fromBlob.copyTo(getBlobId(to));
+        copyWriter.getResult(); // So we block.
+        fromBlob.delete();
+    }
+
+    @Override
+    public void delete(String path) throws IOException {
+        boolean delete = storage.delete(getBlobId(path));
+        if (!delete) {
+            throw new FileNotFoundException(path);
+        }
     }
 
     private BlobId getBlobId(String path) throws IOException {

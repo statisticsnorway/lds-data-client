@@ -4,6 +4,7 @@ import io.reactivex.Flowable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -58,6 +59,8 @@ public class DataClientTest {
         recordBuilder = new GenericRecordBuilder(DIMENSIONAL_SCHEMA);
     }
 
+
+
     @Test
     void testWithCursor() throws IOException {
 
@@ -71,12 +74,12 @@ public class DataClientTest {
             size += block.getRowCount();
         }
 
-        Single<GenericRecord> last = client.readData("test", DIMENSIONAL_SCHEMA, "token", new Cursor<>(1, size - 1))
-                .firstOrError();
+        Single<GenericRecord> last = client.readData("test", DIMENSIONAL_SCHEMA,
+                "token", new Cursor<>(1, size - 1)
+        ).firstOrError();
 
-        System.out.println("READING!");
         GenericRecord genericRecord = last.blockingGet();
-        System.out.println(genericRecord);
+        assertThat(genericRecord.get("int")).isEqualTo(999);
 
     }
 

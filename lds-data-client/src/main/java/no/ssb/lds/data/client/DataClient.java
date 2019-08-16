@@ -150,18 +150,15 @@ public class DataClient {
      */
     public <R extends GenericRecord> Flowable<R> writeData(String dataId, Schema schema, Flowable<R> records, String token) {
         return Flowable.defer(() -> {
-            SeekableByteChannel channel = backend.write(configuration.getLocation() + dataId);
-            ParquetWriter<GenericRecord> writer = provider.getWriter(channel, schema);
-            return records.doAfterNext(record -> {
-                writer.write(record);
-            }).doOnComplete(() -> {
-                // TODO: We should add a two-step write API.
-            }).doOnError(throwable -> {
-                // TODO: We should add a two-step write API.
-            }).doFinally(() -> {
-                writer.close();
-            });
+            DataWriter writer = writeData(dataId, schema, token);
+            return records.doAfterNext(writer::save)
+                    .doOnComplete(writer::close)
+                    .doOnError(throwable -> writer.cancel());
         });
+    }
+
+    public DataWriter writeData(String dataId, Schema schema, String token) throws IOException {
+        return new DataWriter(dataId, schema);
     }
 
     /**
@@ -273,5 +270,60 @@ public class DataClient {
             return new DataClient(this);
         }
 
+    }
+
+    /**
+     * Writer abstraction.
+     */
+    public class DataWriter implements AutoCloseable {
+        private final String tmpPath;
+        private final String path;
+        private final ParquetWriter<GenericRecord> parquetWriter;
+
+
+        private DataWriter(String datasetId, Schema schema) throws IOException {
+            path = configuration.getLocation() + datasetId;
+            tmpPath = path + ".tmp";
+            SeekableByteChannel channel = backend.write(tmpPath);
+            parquetWriter = provider.getWriter(channel, schema);
+        }
+
+        /**
+         * Push down a generic record.
+         * <p>
+         * Note that the record might be buffered. Calling {@link #close()} after this method
+         * guaranties that the given record is written.
+         *
+         * @param record the record to save.
+         */
+        public void save(GenericRecord record) throws IOException {
+            parquetWriter.write(record);
+        }
+
+        public void cancel() throws IOException {
+            try {
+                parquetWriter.close();
+            } finally {
+                backend.delete(tmpPath);
+            }
+        }
+
+        /**
+         * Write all buffered records, close the file and rename it.
+         */
+        @Override
+        public void close() throws IOException {
+            try {
+                parquetWriter.close();
+                backend.move(tmpPath, path);
+            } catch (IOException ioe) {
+                try {
+                    cancel();
+                } catch (IOException deleteIoe) {
+                    ioe.addSuppressed(deleteIoe);
+                }
+                throw ioe;
+            }
+        }
     }
 }
