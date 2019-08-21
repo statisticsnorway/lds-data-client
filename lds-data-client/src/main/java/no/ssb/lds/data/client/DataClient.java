@@ -132,23 +132,18 @@ public class DataClient {
         // TODO: Do something with token.
         // TODO: Handle projection.
         // TODO: Handle filtering.
-
-        FilterCompat.Filter filter;
-        int size = 100;
         if (cursor != null) {
             // Convert to pos + size
             long start = Math.max(cursor.getAfter(), 0);
-            size = Math.max(cursor.getNext(), 0);
+            int size = Math.max(cursor.getNext(), 0);
             // Note the size + 1 here. The filter implementation goes through all the groups unless
             // we return one extra and limit with actual size. This will probably be fixed by parquet team at some
             // point.
-            filter = FilterCompat.get(new PagedRecordFilter(start, start + size + 1));
+            FilterCompat.Filter filter = FilterCompat.get(new PagedRecordFilter(start, start + size + 1));
+            return readRecords(dataId, schema, filter).limit(size);
         } else {
-            filter = FilterCompat.NOOP;
+            return readRecords(dataId, schema, FilterCompat.NOOP);
         }
-
-        Flowable<GenericRecord> records = readRecords(dataId, schema, filter);
-        return records.limit(size);
     }
 
     private Flowable<GenericRecord> readRecords(String dataId, Schema schema, FilterCompat.Filter filter) {

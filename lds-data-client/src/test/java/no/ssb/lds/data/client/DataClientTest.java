@@ -2,7 +2,6 @@ package no.ssb.lds.data.client;
 
 import io.reactivex.Flowable;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -55,23 +55,24 @@ public class DataClientTest {
     @Test
     void testReadWRite() {
 
-        GenericData.Record record = recordBuilder
+        GenericRecordBuilder record = recordBuilder
                 .set("string", "foo")
-                .set("int", 123)
                 .set("boolean", true)
                 .set("float", 123.123F)
                 .set("long", 123L)
-                .set("double", 123.123D)
-                .build();
+                .set("double", 123.123D);
 
-        Flowable<GenericRecord> records = Flowable.range(1, 1000).map(integer -> record);
+        Flowable<GenericRecord> records = Flowable.range(1, 1000).map(integer -> record.set("int", integer)
+                .build());
 
         client.writeData("test", DIMENSIONAL_SCHEMA, records, "").blockingAwait();
 
         List<GenericRecord> readRecords = client.readData("test", DIMENSIONAL_SCHEMA, "", null)
                 .toList().blockingGet();
 
-        assertThat(readRecords).containsExactlyInAnyOrderElementsOf(records.toList().blockingGet());
+        assertThat(readRecords)
+                .usingElementComparator(Comparator.comparingInt(r -> (Integer) r.get("int")))
+                .containsExactlyInAnyOrderElementsOf(records.toList().blockingGet());
 
     }
 
