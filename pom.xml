@@ -20,17 +20,39 @@
         <module>lds-data-hadoop</module>
         <module>lds-data-gcs</module>
     </modules>
-         
-    <distributionManagement>
-        <repository>
-            <id>ssb-releases</id>
-            <url>https://nexus.infra.ssbmod.net/repository/maven-releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>ssb-snapshots</id>
-            <url>https://nexus.infra.ssbmod.net/repository/maven-snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
+
+    <profiles>
+        <profile>
+            <id>ssb</id>
+            <distributionManagement>
+                <repository>
+                    <id>ssb-releases</id>
+                    <name>SSB Nexus Releases</name>
+                    <url>https://nexus.ssb.no/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>ssb-snapshots</id>
+                    <name>SSB Snapshot Repository</name>
+                    <url>https://nexus.ssb.no/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+        <profile>
+            <id>ssb-bip</id>
+            <distributionManagement>
+                <repository>
+                    <id>ssb-bip-releases</id>
+                    <name>SSB Nexus Releases</name>
+                    <url>https://nexus.infra.ssbmod.net/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>ssb-bip-snapshots</id>
+                    <name>SSB Snapshot Repository</name>
+                    <url>https://nexus.infra.ssbmod.net/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 
     <build>
         <plugins>
