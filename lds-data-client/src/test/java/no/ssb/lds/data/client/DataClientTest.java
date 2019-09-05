@@ -89,7 +89,7 @@ public class DataClientTest {
         }, (atomicLong, emitter) -> {
             Thread.sleep(random.nextInt(10));
             long value = atomicLong.decrementAndGet();
-            if (value == 0L) {
+            if (value <= 0L) {
                 emitter.onComplete();
             } else {
                 emitter.onNext(value);
@@ -98,10 +98,12 @@ public class DataClientTest {
             System.out.println("Done generating");
         });
 
+        GenericRecordBuilder builder = new GenericRecordBuilder(DIMENSIONAL_SCHEMA);
+
         unlimitedFlowable
                 // Transform to records.
                 .map(income -> {
-                    return (GenericRecord) recordBuilder
+                    return (GenericRecord) builder
                             .set("string", income.toString())
                             .set("int", income)
                             .set("boolean", income % 2 == 0)
