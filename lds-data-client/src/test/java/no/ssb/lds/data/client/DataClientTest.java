@@ -77,13 +77,13 @@ public class DataClientTest {
     }
 
     @Test
-    public void testWindowedWrite() {
+    void testWindowedWrite() {
 
         // Demonstrate the use of windowing (time and size) with the data client.
 
         Random random = new Random();
         Flowable<Long> unlimitedFlowable = Flowable.generate(() -> {
-            AtomicLong size = new AtomicLong(random.nextInt(5000) + 5000);
+            AtomicLong size = new AtomicLong(random.nextInt(500) + 500);
             System.out.println("Starting generator with size " + size.get());
             return size;
         }, (atomicLong, emitter) -> {
@@ -98,12 +98,10 @@ public class DataClientTest {
             System.out.println("Done generating");
         });
 
-        GenericRecordBuilder builder = new GenericRecordBuilder(DIMENSIONAL_SCHEMA);
-
         unlimitedFlowable
                 // Transform to records.
                 .map(income -> {
-                    return (GenericRecord) builder
+                    return (GenericRecord) recordBuilder
                             .set("string", income.toString())
                             .set("int", income)
                             .set("boolean", income % 2 == 0)
@@ -114,9 +112,9 @@ public class DataClientTest {
                 })
                 // Buffer by size and time. Max 1000 or 5 seconds.
                 .window(
-                        5,
-                        TimeUnit.SECONDS,
-                        1000,
+                        2500,
+                        TimeUnit.MILLISECONDS,
+                        100,
                         true
                 )
                 // Write a file for each group.
