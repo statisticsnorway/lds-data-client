@@ -4,7 +4,6 @@ import io.reactivex.Flowable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -35,6 +34,7 @@ public class DataClientTest {
             new Schema.Field("long", Schema.create(Schema.Type.LONG), "A long", (Object) null),
             new Schema.Field("double", Schema.create(Schema.Type.DOUBLE), "A double", (Object) null)
     ));
+
     private DataClient client;
     private String prefix;
     private GenericRecordBuilder recordBuilder;

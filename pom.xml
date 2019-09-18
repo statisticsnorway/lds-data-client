@@ -11,8 +11,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <module.build.sourceEncoding>UTF-8</module.build.sourceEncoding>
-        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <modules>
@@ -20,31 +19,57 @@
         <module>lds-data-hadoop</module>
         <module>lds-data-gcs</module>
     </modules>
-         
-    <distributionManagement>
-        <repository>
-            <id>ssb-releases</id>
-            <url>https://nexus.infra.ssbmod.net/repository/maven-releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>ssb-snapshots</id>
-            <url>https://nexus.infra.ssbmod.net/repository/maven-snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
+
+    <profiles>
+        <profile>
+            <id>ssb</id>
+            <distributionManagement>
+                <repository>
+                    <id>ssb-releases</id>
+                    <name>SSB Nexus Releases</name>
+                    <url>https://nexus.ssb.no/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>ssb-snapshots</id>
+                    <name>SSB Snapshot Repository</name>
+                    <url>https://nexus.ssb.no/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+        <profile>
+            <id>ssb-bip</id>
+            <distributionManagement>
+                <repository>
+                    <id>ssb-bip-releases</id>
+                    <name>SSB Nexus Releases</name>
+                    <url>https://nexus.infra.ssbmod.net/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>ssb-bip-snapshots</id>
+                    <name>SSB Snapshot Repository</name>
+                    <url>https://nexus.infra.ssbmod.net/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 
     <build>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <release>${java.version}</release>
-                    <encoding>${module.build.sourceEncoding}</encoding>
+                    <encoding>${project.build.sourceEncoding}</encoding>
                     <meminitial>64m</meminitial>
                     <maxmem>512m</maxmem>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.2</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -87,6 +112,7 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.3.0-alpha4</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

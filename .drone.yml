@@ -2,21 +2,54 @@ kind: pipeline
 name: default
 
 steps:
-- name: build
-  image: maven:3.6.0-jdk-11-slim
-  commands:
-  - mvn install
-  
-- name: test
-  image: maven:3.6.0-jdk-11-slim
-  commands:
-  - mvn clean test -B
-  
-- name: deploy
-  image: maven:3.6.0-jdk-11-slim
-  commands:
-  - mvn deploy:deploy -B -DskipTests
-  when:
-    branch:
-    - master
-    - develop
+
+  - name: authenticate
+    image: robertstettner/drone-mvn-auth
+    pull: always
+    settings:
+      servers:
+        from_secret: maven_servers
+
+  - name: build
+    image: maven:3.6.0-jdk-11-slim
+    commands:
+      - mvn compile -DskipTests=true -Dmaven.javadoc.skip=true --batch-mode --global-settings settings.xml
+
+  - name: test
+    image: maven:3.6.0-jdk-11-slim
+    commands:
+      - mvn test --batch-mode --global-settings settings.xml
+
+  - name: publish-maven
+    image: maven:3.6.0-jdk-11-slim
+    commands:
+      - mvn clean deploy -P ssb-bip,   -DskipTests=true --batch-mode --global-settings settings.xml
+    when:
+      event:
+        exclude: pull_request
+      branch:
+        - master
+        - develop
+
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: slack_webhook_url
+      channel: bip-ci-test
+    when:
+      status: [ success, failure ]
+
+---
+kind: secret
+name: slack_webhook_url
+get:
+  path: drone-slack-webhook-url
+  name: slack-webhook-url
+
+---
+kind: secret
+name: maven_servers
+get:
+  path: drone-maven-servers
+  name: ssb-bip-maven-servers
