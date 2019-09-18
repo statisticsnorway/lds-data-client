@@ -9,6 +9,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 public class LocalBackend implements BinaryBackend {
 
@@ -40,5 +43,18 @@ public class LocalBackend implements BinaryBackend {
             throw new IOException("file " + file + " already exist");
         }
         return new FileOutputStream(file).getChannel();
+    }
+
+    @Override
+    public void move(String from, String to) throws IOException {
+        File source = new File(prefix + from);
+        Path destination = new File(prefix + to).toPath();
+        Files.move(source.toPath(), destination, StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    @Override
+    public void delete(String path) throws IOException {
+        File file = new File(prefix + path);
+        Files.delete(file.toPath());
     }
 }

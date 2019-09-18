@@ -15,4 +15,8 @@ public interface BinaryBackend {
     SeekableByteChannel read(String path) throws IOException;
 
     SeekableByteChannel write(String path) throws IOException;
+
+    void move(String from, String to) throws IOException;
+
+    void delete(String path) throws IOException;
 }

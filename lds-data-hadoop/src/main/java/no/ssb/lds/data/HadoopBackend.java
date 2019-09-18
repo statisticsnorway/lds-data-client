@@ -126,4 +126,16 @@ public class HadoopBackend implements BinaryBackend {
             }
         };
     }
+
+    @Override
+    public void move(String from, String to) throws IOException {
+        fileSystem.rename(new Path(from), new Path(to));
+    }
+
+    @Override
+    public void delete(String path) throws IOException {
+        if (!fileSystem.delete(new Path(path), false)) {
+            throw new IOException("Could not delete " + path);
+        }
+    }
 }
