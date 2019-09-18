@@ -20,13 +20,13 @@ Add the desired modules to your project:
 <dependency>
     <groupId>no.ssb.lds.data</groupId>
     <artifactId>lds-data-client</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
 </dependency>
 
 <dependency>
     <groupId>no.ssb.lds.data</groupId>
     <artifactId>lds-data-gcs</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
 </dependency>
 ```
 
