@@ -47,7 +47,10 @@ public class DataClient {
     }
 
     /**
-     * Returns true if the data client has a converter that support the mediaType.
+     * Checks if the client can convert from and to a media type
+     *
+     * @param mediaType the media type to check against
+     * @return true if the data client has a converter that support the media type.
      */
     public boolean canConvert(String mediaType) {
         for (FormatConverter converter : converters) {
@@ -67,6 +70,7 @@ public class DataClient {
      * @param mediaType the media type of the binary data.
      * @param token     an authentication token.
      * @return a completable that completes once the data is saved.
+     * @throws UnsupportedMediaTypeException if the client does not support the media type.
      */
     public Completable convertAndWrite(String dataId, Schema schema, InputStream input, String mediaType,
                                        String token) throws UnsupportedMediaTypeException {
@@ -88,6 +92,7 @@ public class DataClient {
      * @param mediaType    the media type of the binary data.
      * @param token        an authentication token.
      * @return a completable that completes once the data is read.
+     * @throws UnsupportedMediaTypeException if the client does not support the media type.
      */
     public Completable readAndConvert(String dataId, Schema schema, OutputStream outputStream,
                                       String mediaType, String token) throws UnsupportedMediaTypeException {
@@ -157,6 +162,18 @@ public class DataClient {
         });
     }
 
+    /**
+     * Create a {@link DataWriter}
+     * <p>
+     * {@link DataWriter}s can be used to write data in a sequential manner. Buffering is then delegated to the
+     * parquet layer. Remember to close all instances.
+     *
+     * @param dataId an opaque identifier for the data.
+     * @param schema the schema used to create the records.
+     * @param token  an authentication token.
+     * @return an instance of {@link DataWriter} ready to accept records.
+     * @throws IOException if any I/O errors occurs.
+     */
     public DataWriter writeData(String dataId, Schema schema, String token) throws IOException {
         return new DataWriter(dataId, schema);
     }
@@ -167,7 +184,7 @@ public class DataClient {
      * @param dataId the identifier for the data.
      * @param schema the schema used to create the records.
      * @param token  an authentication token.
-     * @param cursor
+     * @param cursor a cursor on record number.
      * @return a {@link Flowable} of records.
      */
     public Flowable<GenericRecord> readData(String dataId, Schema schema, String token, Cursor<Long> cursor) {
