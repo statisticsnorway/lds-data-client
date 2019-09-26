@@ -7,11 +7,11 @@
     <parent>
         <groupId>no.ssb.lds.data</groupId>
         <artifactId>lds-data-parent</artifactId>
-        <version>0.0.4-SNAPSHOT</version>
+        <version>0.0.4</version>
     </parent>
 
     <artifactId>lds-data-gcs</artifactId>
-    <version>0.0.4-SNAPSHOT</version>
+    <version>0.0.4</version>
 
     <dependencies>
 
@@ -36,7 +36,7 @@
         <dependency>
             <groupId>no.ssb.lds.data</groupId>
             <artifactId>lds-data-client</artifactId>
-            <version>0.0.4-SNAPSHOT</version>
+            <version>0.0.4</version>
         </dependency>
     </dependencies>
 
