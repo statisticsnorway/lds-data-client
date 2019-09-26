@@ -25,8 +25,9 @@ steps:
     commands:
       - mvn clean deploy -P ssb-bip, -DskipTests=true --batch-mode --global-settings settings.xml
     when:
-      event:
-        exclude: pull_request
+      ref:
+        - refs/heads/develop
+        - refs/tags/*
       branch:
         - master
         - develop
