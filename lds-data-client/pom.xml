@@ -7,11 +7,11 @@
     <parent>
         <groupId>no.ssb.lds.data</groupId>
         <artifactId>lds-data-parent</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>0.0.2</version>
     </parent>
 
     <artifactId>lds-data-client</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.0.2</version>
 
     <dependencies>
 
@@ -89,17 +89,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>11</source>
-                    <release>8</release>
-                    <encoding>UTF-8</encoding>
-                    <meminitial>64m</meminitial>
-                    <maxmem>512m</maxmem>
-                </configuration>
-            </plugin>
             <!-- Avoid the go-offline error with multi module -->
             <plugin>
                 <groupId>de.qaware.maven</groupId>
