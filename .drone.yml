@@ -28,9 +28,6 @@ steps:
       ref:
         - refs/heads/develop
         - refs/tags/*
-      branch:
-        - master
-        - develop
 
   - name: slack
     image: plugins/slack
