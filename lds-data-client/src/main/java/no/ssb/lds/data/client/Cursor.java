@@ -3,7 +3,7 @@ package no.ssb.lds.data.client;
 /**
  * Simple cursor representation.
  *
- * @param <T>
+ * @param <T> the type of the cursor
  */
 public class Cursor<T> {
     private final T after;
