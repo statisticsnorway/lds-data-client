@@ -46,7 +46,7 @@ steps:
     commands:
       - curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/6.0.6/codacy-coverage-reporter-linux"
       - chmod +x codacy-coverage-reporter
-      - ./codacy-coverage-reporter report -l Java -r target/site/jacoco/jacoco.xml
+      - ./codacy-coverage-reporter report -l Java -r lds-data-test/target/site/jacoco-aggregate/jacoco.xml
     environment:
       CODACY_PROJECT_TOKEN:
         from_secret: codacy_token
