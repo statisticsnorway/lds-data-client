@@ -13,10 +13,12 @@ steps:
   - name: restore-cache
     image: homerovalle/drone-gcs-cache
     pull: always
-    bucket: drone_m2_cache
-    json_key:
-      from_secret: gcr_credentials
-    restore: true
+    settings:
+      restore: true
+      bucket: drone_m2_cache
+      json_key:
+        from_secret: gcr_credentials
+      #secrets: [ gcr_credentials ]
 
   - name: build
     image: maven:3-jdk-11
@@ -27,6 +29,7 @@ steps:
       M2_HOME: /drone/src/.m2
     depends_on:
       - authenticate
+      - restore-cache
 
   - name: test
     image: maven:3-jdk-11
@@ -77,23 +80,29 @@ steps:
   - name: rebuild-cache
     image: homerovalle/drone-gcs-cache
     pull: always
-    bucket: drone_m2_cache
-    json_key:
-      from_secret: gcr_credentials
-    rebuild: true
-    mount:
-      - .m2
-    when:
-      event: push
+    settings:
+      rebuild: true
+      bucket: drone_m2_cache
+      json_key:
+        from_secret: gcr_credentials
+      mount:
+        - .m2
+    depends_on:
+      - sonarqube
+      - codacy
+      - codecov
 
   - name: flush_cache
     image: homerovalle/drone-gcs-cache
     pull: always
-    bucket: drone_m2_cache
-    json_key:
-      from_secret: gcr_credentials
-    flush: true
-    flush_age: 14
+    settings:
+      flush: true
+      flush_age: 14
+      bucket: drone_m2_cache
+      json_key:
+        from_secret: gcr_credentials
+    depends_on:
+      - rebuild-cache
 
   - name: publish-maven
     image: maven:3-jdk-11
@@ -107,9 +116,7 @@ steps:
       MAVEN_HOME: /drone/src/.m2
       M2_HOME: /drone/src/.m2
     depends_on:
-      - sonarqube
-      - codacy
-      - codecov
+      - flush_cache
 
   - name: slack
     image: plugins/slack
