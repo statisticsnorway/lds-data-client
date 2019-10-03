@@ -10,6 +10,14 @@ steps:
       servers:
         from_secret: maven_servers
 
+  - name: restore-cache
+    image: homerovalle/drone-gcs-cache
+    pull: always
+    bucket: drone_m2_cache
+    json_key:
+      from_secret: gcr_credentials
+    restore: true
+
   - name: build
     image: maven:3-jdk-11
     commands:
@@ -65,6 +73,27 @@ steps:
       M2_HOME: /drone/src/.m2
     depends_on:
       - test
+
+  - name: rebuild-cache
+    image: homerovalle/drone-gcs-cache
+    pull: always
+    bucket: drone_m2_cache
+    json_key:
+      from_secret: gcr_credentials
+    rebuild: true
+    mount:
+      - .m2
+    when:
+      event: push
+
+  - name: flush_cache
+    image: homerovalle/drone-gcs-cache
+    pull: always
+    bucket: drone_m2_cache
+    json_key:
+      from_secret: gcr_credentials
+    flush: true
+    flush_age: 14
 
   - name: publish-maven
     image: maven:3-jdk-11
