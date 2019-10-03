@@ -17,6 +17,7 @@
         <module>lds-data-client</module>
         <module>lds-data-hadoop</module>
         <module>lds-data-gcs</module>
+        <module>lds-data-test</module>
     </modules>
 
     <profiles>
@@ -24,7 +25,7 @@
             <id>coverage</id>
             <properties>
                 <sonar.coverage.jacoco.xmlReportPaths>
-                    ${project.build.outputDirectory}/../site/jacoco/jacoco.xml
+                    lds-data-test/site/jacoco/jacoco.xml
                 </sonar.coverage.jacoco.xmlReportPaths>
             </properties>
             <build>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>lds-data-parent</artifactId>
+        <groupId>no.ssb.lds.data</groupId>
+        <version>0.0.5-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>lds-data-test</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>no.ssb.lds.data</groupId>
+            <artifactId>lds-data-client</artifactId>
+            <version>0.0.5-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.lds.data</groupId>
+            <artifactId>lds-data-gcs</artifactId>
+            <version>0.0.5-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.lds.data</groupId>
+            <artifactId>lds-data-hadoop</artifactId>
+            <version>0.0.5-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.4</version>
+                <executions>
+                    <execution>
+                        <id>report-aggregate</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <title>JaCoCo</title>
+                            <footer>Code Coverage Report for JaCoCo ${project.version}</footer>
+                            <includes>
+                                <!-- Analyze class files only to exclude shaded agent JAR from report -->
+                                <include>**/*.class</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/HelpMojo.class</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
