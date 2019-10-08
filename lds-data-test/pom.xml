@@ -45,13 +45,6 @@
                         <configuration>
                             <title>JaCoCo</title>
                             <footer>Code Coverage Report for JaCoCo ${project.version}</footer>
-                            <includes>
-                                <!-- Analyze class files only to exclude shaded agent JAR from report -->
-                                <include>**/*.class</include>
-                            </includes>
-                            <excludes>
-                                <exclude>**/HelpMojo.class</exclude>
-                            </excludes>
                         </configuration>
                     </execution>
                 </executions>
