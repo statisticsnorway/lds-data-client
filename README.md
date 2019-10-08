@@ -1,5 +1,7 @@
 # Linked Data Store (LDS) data module
 
+[![Build Status](https://drone.prod-bip-ci.ssb.no/api/badges/statisticsnorway/lds-data-client/status.svg)](https://drone.prod-bip-ci.ssb.no/statisticsnorway/lds-data-client)
+
 Proof of Concept module for reading and writing data to underlying distributed datastore.
 
 ## Modules
